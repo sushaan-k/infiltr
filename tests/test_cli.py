@@ -232,7 +232,7 @@ class TestReportCommand:
                     "remediation": "Fix.",
                     "category": "prompt_injection",
                 }
-            ]
+            ],
         }
 
         with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:

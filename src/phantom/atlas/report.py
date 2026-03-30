@@ -214,7 +214,9 @@ class ATLASReport:
                     "total_findings": len(self._findings),
                     "total_probes": self._total_probes,
                     "novel_attacks": self._novel_count,
-                    "by_severity": {s.value: self.count_by_severity(s) for s in Severity},
+                    "by_severity": {
+                        s.value: self.count_by_severity(s) for s in Severity
+                    },
                 }
             )
             data = {
