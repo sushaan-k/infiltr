@@ -269,6 +269,16 @@ phantom/
     techniques.json      # MITRE ATLAS technique database
 ```
 
+## Demo
+
+Run the offline walkthrough with:
+
+```bash
+uv run python examples/demo.py
+```
+
+For live agent and chatbot scans, see the larger examples in `examples/`.
+
 ## Development
 
 ```bash
@@ -311,4 +321,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-Built by [Sushaan Kandukoori](https://github.com/sushaankandukoori).
+Built by [Sushaan Kandukoori](https://github.com/sushaan-k).
