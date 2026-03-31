@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -363,6 +366,86 @@ class ATLASReport:
             logger.info("report_generated", format="sarif", path=str(path))
         except OSError as exc:
             raise ReportGenerationError("SARIF", str(exc)) from exc
+
+    def upload_to_github(
+        self,
+        repo: str | None = None,
+        ref: str | None = None,
+    ) -> bool:
+        """Upload SARIF results to GitHub via the ``gh`` CLI.
+
+        Generates a temporary SARIF file and invokes
+        ``gh api`` to upload it.  If the ``gh`` CLI is not
+        installed the method is a silent no-op and returns ``False``.
+
+        Args:
+            repo: GitHub repository in ``owner/repo`` format.
+                If *None* the CLI auto-detects from the local git
+                remote.
+            ref: Git ref (branch/tag/SHA) for the upload.
+                If *None* the CLI auto-detects from HEAD.
+
+        Returns:
+            ``True`` if the upload succeeded, ``False`` otherwise.
+        """
+        if shutil.which("gh") is None:
+            logger.info("gh_cli_not_found", action="skip_upload")
+            return False
+
+        tmpdir = tempfile.mkdtemp(prefix="phantom_sarif_")
+        sarif_path = Path(tmpdir) / "phantom-results.sarif"
+        try:
+            self.to_sarif(sarif_path)
+        except ReportGenerationError:
+            logger.warning("sarif_generation_failed_for_upload")
+            return False
+
+        cmd: list[str] = [
+            "gh",
+            "api",
+            "-X",
+            "POST",
+            "-H",
+            "Accept: application/vnd.github+json",
+        ]
+        endpoint = "/repos/{repo}/code-scanning/sarifs"
+        if repo is not None:
+            endpoint = endpoint.replace("{repo}", repo)
+        else:
+            endpoint = endpoint.replace(
+                "{repo}", "{owner}/{repo}"
+            )
+        cmd.extend([endpoint])
+
+        if ref is not None:
+            cmd.extend(["-f", f"ref={ref}"])
+
+        cmd.extend(["-f", f"sarif=@{sarif_path}"])
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "sarif_uploaded",
+                    repo=repo or "auto",
+                )
+                return True
+            logger.warning(
+                "sarif_upload_failed",
+                returncode=result.returncode,
+                stderr=result.stderr[:200],
+            )
+            return False
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.warning(
+                "sarif_upload_error", error=str(exc)
+            )
+            return False
 
     def to_dict(self) -> dict[str, Any]:
         """Export findings as a Python dictionary.
