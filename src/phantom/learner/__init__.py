@@ -2,6 +2,7 @@
 
 from phantom.learner.policy import PolicyNetwork, PolicyState
 from phantom.learner.reward import RewardClassifier, RewardSignal
+from phantom.learner.tracker import SuccessTracker
 from phantom.learner.trainer import RLTrainer, TrainerConfig
 
 __all__ = [
@@ -10,5 +11,6 @@ __all__ = [
     "RewardClassifier",
     "RewardSignal",
     "RLTrainer",
+    "SuccessTracker",
     "TrainerConfig",
 ]
