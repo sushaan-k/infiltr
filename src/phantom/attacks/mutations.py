@@ -90,10 +90,28 @@ class MutationEngine:
 
     Args:
         rng_seed: Optional random seed for reproducibility.
+        mutation_weights: Optional mapping of operator name to
+            selection weight.  Operators not listed default to 1.0.
+            Used by :meth:`random_mutate` to bias which mutations
+            are applied.
     """
 
-    def __init__(self, rng_seed: int | None = None) -> None:
+    def __init__(
+        self,
+        rng_seed: int | None = None,
+        mutation_weights: dict[str, float] | None = None,
+    ) -> None:
         self._rng = random.Random(rng_seed)
+        self._mutation_weights: dict[str, float] = {}
+        if mutation_weights is not None:
+            for key, weight in mutation_weights.items():
+                if weight < 0:
+                    msg = (
+                        f"Weight for '{key}' must be non-negative, "
+                        f"got {weight}"
+                    )
+                    raise ValueError(msg)
+                self._mutation_weights[key] = weight
         self._operators: dict[str, Callable[[str, dict[str, Any]], str]] = {
             MutationOperator.SYNONYM_REPLACEMENT: self._synonym_replacement,
             MutationOperator.BASE64_ENCODING: self._base64_encoding,
@@ -175,12 +193,25 @@ class MutationEngine:
 
         return result
 
+    @property
+    def mutation_weights(self) -> dict[str, float]:
+        """Return the current mutation weight mapping.
+
+        Returns a copy of the configured weights.  Operators without
+        an explicit weight default to 1.0 during selection.
+        """
+        return dict(self._mutation_weights)
+
     def random_mutate(
         self,
         prompt: str,
         num_mutations: int = 1,
     ) -> str:
         """Apply random mutation operators to a prompt.
+
+        When ``mutation_weights`` were provided at construction time
+        they are used to bias operator selection.  Operators without
+        an explicit weight are assigned a default weight of 1.0.
 
         Args:
             prompt: The original attack prompt.
@@ -189,7 +220,13 @@ class MutationEngine:
         Returns:
             The mutated prompt.
         """
-        operators = self._rng.choices(list(MutationOperator), k=num_mutations)
+        all_ops = list(MutationOperator)
+        weights = [
+            self._mutation_weights.get(op.value, 1.0) for op in all_ops
+        ]
+        operators = self._rng.choices(
+            all_ops, weights=weights, k=num_mutations
+        )
         result = prompt
         for op in operators:
             result = self.mutate(result, op)
