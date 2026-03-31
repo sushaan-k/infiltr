@@ -112,6 +112,7 @@ class Target:
                 max_retries=max_retries,
             )
         self._client: httpx.AsyncClient | None = None
+        self._probe_count: int = 0
 
     @property
     def config(self) -> TargetConfig:
@@ -123,16 +124,31 @@ class Target:
         """Return the target endpoint URL."""
         return self._config.endpoint
 
+    @property
+    def probe_count(self) -> int:
+        """Return the number of probes sent via this target instance."""
+        return self._probe_count
+
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the HTTP client.
+        """Get or create a pooled HTTP client.
+
+        The client is created once and reused across all probes,
+        providing connection pooling for multi-turn and batched
+        strategies.  Pool limits are set to allow concurrent
+        requests to the same host.
 
         Returns:
             An httpx AsyncClient instance.
         """
         if self._client is None or self._client.is_closed:
+            pool_limits = httpx.Limits(
+                max_connections=20,
+                max_keepalive_connections=10,
+            )
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self._config.timeout_seconds),
                 headers=self._config.auth,
+                limits=pool_limits,
             )
         return self._client
 
@@ -262,8 +278,10 @@ class Target:
                 data = response.json()
                 text = self._extract_response(data)
 
+                self._probe_count += 1
                 logger.debug(
                     "probe_sent",
+                    probe_number=self._probe_count,
                     prompt_len=len(prompt),
                     response_len=len(text),
                     latency_ms=round(latency_ms, 1),

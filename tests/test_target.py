@@ -480,3 +480,112 @@ class TestTargetTimeout:
         assert isinstance(result, ProbeTimeoutResult)
         assert result.timed_out is True
         await target.close()
+
+
+class TestConnectionPooling:
+    """Tests verifying client reuse across probes."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_client_reused_across_probes(self) -> None:
+        """The same AsyncClient should be reused for multiple probes."""
+        respx.post("https://api.example.com/chat").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "OK"}}
+                    ]
+                },
+            )
+        )
+
+        target = Target(endpoint="https://api.example.com/chat")
+        await target.send_probe("probe 1")
+        client_after_first = target._client
+
+        await target.send_probe("probe 2")
+        client_after_second = target._client
+
+        assert client_after_first is client_after_second
+        assert target.probe_count == 2
+        await target.close()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_probe_count_tracks_successful_sends(
+        self,
+    ) -> None:
+        """probe_count only increments on successful responses."""
+        route = respx.post("https://api.example.com/chat")
+        route.side_effect = [
+            httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "A"}}
+                    ]
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "B"}}
+                    ]
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "C"}}
+                    ]
+                },
+            ),
+        ]
+
+        target = Target(endpoint="https://api.example.com/chat")
+        assert target.probe_count == 0
+        await target.send_probe("first")
+        await target.send_probe("second")
+        await target.send_probe("third")
+        assert target.probe_count == 3
+        await target.close()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_client_recreated_after_close(self) -> None:
+        """After close(), a new client is created on next probe."""
+        respx.post("https://api.example.com/chat").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "OK"}}
+                    ]
+                },
+            )
+        )
+
+        target = Target(endpoint="https://api.example.com/chat")
+        await target.send_probe("probe 1")
+        first_client = target._client
+        await target.close()
+        assert target._client is None
+
+        await target.send_probe("probe 2")
+        second_client = target._client
+        assert second_client is not first_client
+        assert target.probe_count == 2
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_pool_limits_configured(self) -> None:
+        """Verify the client has pool limits set."""
+        target = Target(endpoint="https://api.example.com/chat")
+        client = await target._get_client()
+        pool = client._transport._pool
+        assert pool._max_connections == 20
+        assert pool._max_keepalive_connections == 10
+        await target.close()
