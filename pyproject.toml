@@ -58,10 +58,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sushaankandukoori/phantom"
-Documentation = "https://github.com/sushaankandukoori/phantom#readme"
-Repository = "https://github.com/sushaankandukoori/phantom"
-Issues = "https://github.com/sushaankandukoori/phantom/issues"
+Homepage = "https://github.com/sushaan-k/phantom"
+Documentation = "https://github.com/sushaan-k/phantom#readme"
+Repository = "https://github.com/sushaan-k/phantom"
+Issues = "https://github.com/sushaan-k/phantom/issues"
 
 [project.scripts]
 phantom = "phantom.cli:app"
