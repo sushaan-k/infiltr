@@ -278,3 +278,46 @@ class TestMutationStress:
         result = engine.mutate("secret payload", MutationOperator.ENCODING_CHAIN)
         assert "Reverse" in result
         assert "base64" in result.lower()
+
+
+class TestMutationWeights:
+    """Tests for configurable mutation weights."""
+
+    def test_default_uniform_weights(self) -> None:
+        """Without explicit weights all operators are equally likely."""
+        engine = MutationEngine(rng_seed=0)
+        assert engine.mutation_weights == {}
+
+    def test_custom_weights_stored(self) -> None:
+        """Weights passed at init are accessible via property."""
+        weights = {"base64_encoding": 5.0, "role_play_framing": 0.0}
+        engine = MutationEngine(rng_seed=0, mutation_weights=weights)
+        assert engine.mutation_weights == weights
+
+    def test_zero_weight_suppresses_operator(self) -> None:
+        """An operator with weight 0 should never be selected."""
+        weights = {op.value: 0.0 for op in MutationOperator}
+        weights["base64_encoding"] = 1.0
+        engine = MutationEngine(rng_seed=42, mutation_weights=weights)
+        for _ in range(20):
+            result = engine.random_mutate("test payload")
+            assert "base64" in result.lower()
+
+    def test_negative_weight_raises(self) -> None:
+        """Negative weights are rejected at construction."""
+        with pytest.raises(ValueError, match="non-negative"):
+            MutationEngine(mutation_weights={"base64_encoding": -1.0})
+
+    def test_weighted_random_mutate_biased(self) -> None:
+        """Heavy weight should bias selection toward that operator."""
+        weights = {op.value: 0.001 for op in MutationOperator}
+        weights["base64_encoding"] = 1000.0
+        engine = MutationEngine(rng_seed=7, mutation_weights=weights)
+        b64_count = 0
+        trials = 50
+        for _ in range(trials):
+            result = engine.random_mutate("hello world")
+            if "base64" in result.lower():
+                b64_count += 1
+        # With such extreme bias, almost all should be base64
+        assert b64_count > trials * 0.8
