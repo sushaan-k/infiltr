@@ -15,6 +15,15 @@ from phantom.models import Conversation
 logger = get_logger("phantom.target")
 
 
+class ProbeTimeoutResult(BaseModel):
+    """Structured result returned when a probe times out."""
+
+    timed_out: bool = True
+    timeout_seconds: float
+    endpoint: str
+    error_message: str
+
+
 class TargetConfig(BaseModel):
     """Configuration for the target LLM endpoint."""
 
@@ -84,9 +93,11 @@ class Target:
         request_template: dict[str, Any] | None = None,
         response_path: str = "choices.0.message.content",
         timeout_seconds: float = 30.0,
+        timeout: float | None = None,
         max_retries: int = 3,
         config: TargetConfig | None = None,
     ) -> None:
+        effective_timeout = timeout if timeout is not None else timeout_seconds
         if config is not None:
             self._config = config
         else:
@@ -97,7 +108,7 @@ class Target:
                 system_prompt=system_prompt,
                 request_template=request_template or {"model": "gpt-4", "messages": []},
                 response_path=response_path,
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=effective_timeout,
                 max_retries=max_retries,
             )
         self._client: httpx.AsyncClient | None = None
@@ -281,6 +292,40 @@ class Target:
             self._config.endpoint,
             f"Exhausted {self._config.max_retries + 1} attempts: {last_error}",
         )
+
+    async def send_probe_safe(
+        self,
+        prompt: str,
+        conversation: Conversation | None = None,
+    ) -> tuple[str, float] | ProbeTimeoutResult:
+        """Send an attack probe, returning a structured result on timeout.
+
+        Unlike :meth:`send_probe`, this method never raises on timeout
+        or connection errors.  Instead it returns a
+        :class:`ProbeTimeoutResult` so callers can handle the failure
+        without a ``try / except`` block.
+
+        Args:
+            prompt: The attack prompt to send.
+            conversation: Optional conversation context.
+
+        Returns:
+            ``(response_text, latency_ms)`` on success, or a
+            :class:`ProbeTimeoutResult` on timeout / connection failure.
+        """
+        try:
+            return await self.send_probe(prompt, conversation)
+        except TargetConnectionError as exc:
+            logger.warning(
+                "probe_timeout_safe",
+                endpoint=self._config.endpoint,
+                error=str(exc),
+            )
+            return ProbeTimeoutResult(
+                timeout_seconds=self._config.timeout_seconds,
+                endpoint=self._config.endpoint,
+                error_message=str(exc),
+            )
 
     async def send_conversation_turn(
         self,

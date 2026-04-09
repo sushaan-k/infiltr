@@ -8,7 +8,7 @@ import respx
 
 from phantom.exceptions import TargetResponseError
 from phantom.models import Conversation
-from phantom.target import Target, TargetConfig
+from phantom.target import ProbeTimeoutResult, Target, TargetConfig
 
 
 class TestTargetConfig:
@@ -395,3 +395,88 @@ class TestTarget:
         body = target._build_request_body("hello")
         assert body["model"] == "custom-model"
         assert body["temperature"] == 0.5
+
+
+class TestTargetTimeout:
+    """Tests for graceful timeout handling."""
+
+    def test_timeout_param_sets_config(self) -> None:
+        """The timeout convenience param overrides timeout_seconds."""
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            timeout=10.0,
+        )
+        assert target.config.timeout_seconds == 10.0
+
+    def test_default_timeout(self) -> None:
+        """Default timeout should be 30 seconds."""
+        target = Target(endpoint="https://api.example.com/chat")
+        assert target.config.timeout_seconds == 30.0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_send_probe_safe_returns_result_on_timeout(
+        self,
+    ) -> None:
+        """send_probe_safe returns ProbeTimeoutResult on timeout."""
+        route = respx.post("https://api.example.com/chat")
+        route.side_effect = httpx.ReadTimeout("Timeout")
+
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            timeout=1.0,
+            max_retries=0,
+        )
+        result = await target.send_probe_safe("test prompt")
+        assert isinstance(result, ProbeTimeoutResult)
+        assert result.timed_out is True
+        assert result.timeout_seconds == 1.0
+        assert result.endpoint == "https://api.example.com/chat"
+        assert len(result.error_message) > 0
+        await target.close()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_send_probe_safe_returns_tuple_on_success(
+        self,
+    ) -> None:
+        """send_probe_safe returns (text, latency) on success."""
+        respx.post("https://api.example.com/chat").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "Hello!"}}
+                    ]
+                },
+            )
+        )
+
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            timeout=5.0,
+        )
+        result = await target.send_probe_safe("test prompt")
+        assert isinstance(result, tuple)
+        text, latency = result
+        assert text == "Hello!"
+        assert latency > 0
+        await target.close()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_send_probe_safe_on_connection_error(
+        self,
+    ) -> None:
+        """send_probe_safe returns ProbeTimeoutResult on connect error."""
+        route = respx.post("https://api.example.com/chat")
+        route.side_effect = httpx.ConnectError("Connection refused")
+
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            max_retries=0,
+        )
+        result = await target.send_probe_safe("test prompt")
+        assert isinstance(result, ProbeTimeoutResult)
+        assert result.timed_out is True
+        await target.close()
