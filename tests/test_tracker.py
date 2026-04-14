@@ -64,9 +64,7 @@ class TestSuccessTracker:
     def test_plot_learning_curve_with_data(self, tracker: SuccessTracker) -> None:
         for i in range(10):
             outcome = (
-                OutcomeType.FULL_BYPASS
-                if i % 2 == 0
-                else OutcomeType.CLEAN_REFUSAL
+                OutcomeType.FULL_BYPASS if i % 2 == 0 else OutcomeType.CLEAN_REFUSAL
             )
             tracker.record(_make_probe(outcome=outcome))
         curve = tracker.plot_learning_curve()

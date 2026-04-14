@@ -412,9 +412,7 @@ class ATLASReport:
         if repo is not None:
             endpoint = endpoint.replace("{repo}", repo)
         else:
-            endpoint = endpoint.replace(
-                "{repo}", "{owner}/{repo}"
-            )
+            endpoint = endpoint.replace("{repo}", "{owner}/{repo}")
         cmd.extend([endpoint])
 
         if ref is not None:
@@ -442,9 +440,7 @@ class ATLASReport:
             )
             return False
         except (subprocess.TimeoutExpired, OSError) as exc:
-            logger.warning(
-                "sarif_upload_error", error=str(exc)
-            )
+            logger.warning("sarif_upload_error", error=str(exc))
             return False
 
     def to_dict(self) -> dict[str, Any]:

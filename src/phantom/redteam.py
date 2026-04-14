@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -136,6 +137,35 @@ class RedTeamResults(BaseModel):
         if self.total_probes == 0:
             return 0.0
         return round(self.total_bypasses / self.total_probes, 3)
+
+    @property
+    def budget_summary(self) -> dict[str, float]:
+        """Return compact campaign budget and throughput metrics."""
+        if not self.probes:
+            return {
+                "avg_reward": 0.0,
+                "avg_latency_ms": 0.0,
+                "p95_latency_ms": 0.0,
+                "success_rate": 0.0,
+            }
+
+        latencies = sorted(probe.latency_ms for probe in self.probes)
+        p95_index = max(
+            0, min(len(latencies) - 1, math.ceil(len(latencies) * 0.95) - 1)
+        )
+        successes = sum(
+            1
+            for probe in self.probes
+            if probe.outcome in (OutcomeType.FULL_BYPASS, OutcomeType.PARTIAL_BYPASS)
+        )
+        return {
+            "avg_reward": round(
+                sum(probe.reward for probe in self.probes) / len(self.probes), 4
+            ),
+            "avg_latency_ms": round(sum(latencies) / len(latencies), 2),
+            "p95_latency_ms": round(latencies[p95_index], 2),
+            "success_rate": round(successes / len(self.probes), 4),
+        }
 
 
 class RedTeam:

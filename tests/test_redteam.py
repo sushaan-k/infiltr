@@ -65,6 +65,33 @@ class TestRedTeamResults:
         )
         assert results.bypass_rate == 0.25
 
+    def test_budget_summary(self) -> None:
+        results = RedTeamResults(
+            probes=[
+                pytest.importorskip("phantom.models").ProbeResult(
+                    attack_prompt="a",
+                    response="r",
+                    outcome=OutcomeType.CLEAN_REFUSAL,
+                    reward=0.1,
+                    category=AttackCategory.PROMPT_INJECTION,
+                    latency_ms=10.0,
+                ),
+                pytest.importorskip("phantom.models").ProbeResult(
+                    attack_prompt="b",
+                    response="r",
+                    outcome=OutcomeType.FULL_BYPASS,
+                    reward=0.9,
+                    category=AttackCategory.PROMPT_INJECTION,
+                    latency_ms=50.0,
+                ),
+            ]
+        )
+        summary = results.budget_summary
+        assert summary["avg_reward"] == pytest.approx(0.5)
+        assert summary["avg_latency_ms"] == pytest.approx(30.0)
+        assert summary["p95_latency_ms"] == pytest.approx(50.0)
+        assert summary["success_rate"] == pytest.approx(0.5)
+
 
 class TestRedTeam:
     """Tests for the RedTeam orchestrator."""

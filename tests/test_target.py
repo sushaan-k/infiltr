@@ -444,11 +444,7 @@ class TestTargetTimeout:
         respx.post("https://api.example.com/chat").mock(
             return_value=httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "Hello!"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "Hello!"}}]},
             )
         )
 
@@ -492,11 +488,7 @@ class TestConnectionPooling:
         respx.post("https://api.example.com/chat").mock(
             return_value=httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "OK"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "OK"}}]},
             )
         )
 
@@ -521,27 +513,15 @@ class TestConnectionPooling:
         route.side_effect = [
             httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "A"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "A"}}]},
             ),
             httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "B"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "B"}}]},
             ),
             httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "C"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "C"}}]},
             ),
         ]
 
@@ -560,11 +540,7 @@ class TestConnectionPooling:
         respx.post("https://api.example.com/chat").mock(
             return_value=httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": "OK"}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": "OK"}}]},
             )
         )
 
