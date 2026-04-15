@@ -11,6 +11,7 @@ from phantom.models import (
     AttackAction,
     AttackCategory,
     OutcomeType,
+    ProbeResult,
     Severity,
 )
 from phantom.redteam import RedTeam, RedTeamConfig, RedTeamResults
@@ -91,6 +92,47 @@ class TestRedTeamResults:
         assert summary["avg_latency_ms"] == pytest.approx(30.0)
         assert summary["p95_latency_ms"] == pytest.approx(50.0)
         assert summary["success_rate"] == pytest.approx(0.5)
+
+    def test_budget_by_category(self) -> None:
+        results = RedTeamResults(
+            probes=[
+                ProbeResult(
+                    attack_prompt="a",
+                    response="r",
+                    outcome=OutcomeType.CLEAN_REFUSAL,
+                    reward=0.2,
+                    category=AttackCategory.PROMPT_INJECTION,
+                    latency_ms=20.0,
+                ),
+                ProbeResult(
+                    attack_prompt="b",
+                    response="r",
+                    outcome=OutcomeType.FULL_BYPASS,
+                    reward=0.8,
+                    category=AttackCategory.PROMPT_INJECTION,
+                    latency_ms=60.0,
+                ),
+                ProbeResult(
+                    attack_prompt="c",
+                    response="r",
+                    outcome=OutcomeType.PARTIAL_BYPASS,
+                    reward=0.4,
+                    category=AttackCategory.DATA_EXFILTRATION,
+                    latency_ms=40.0,
+                ),
+            ]
+        )
+
+        by_category = results.budget_by_category
+        assert by_category["prompt_injection"]["probes"] == 2.0
+        assert by_category["prompt_injection"]["avg_reward"] == pytest.approx(0.5)
+        assert by_category["prompt_injection"]["avg_latency_ms"] == pytest.approx(40.0)
+        assert by_category["prompt_injection"]["p95_latency_ms"] == pytest.approx(60.0)
+        assert by_category["prompt_injection"]["success_rate"] == pytest.approx(0.5)
+        assert by_category["data_exfiltration"]["success_rate"] == pytest.approx(1.0)
+
+    def test_budget_by_category_empty_results(self) -> None:
+        assert RedTeamResults().budget_by_category == {}
 
 
 class TestRedTeam:
