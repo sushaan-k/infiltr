@@ -124,7 +124,7 @@ class TestRedTeamResults:
         )
 
         by_category = results.budget_by_category
-        assert by_category["prompt_injection"]["probes"] == 2.0
+        assert by_category["prompt_injection"]["probes"] == 2
         assert by_category["prompt_injection"]["avg_reward"] == pytest.approx(0.5)
         assert by_category["prompt_injection"]["avg_latency_ms"] == pytest.approx(40.0)
         assert by_category["prompt_injection"]["p95_latency_ms"] == pytest.approx(60.0)
