@@ -97,6 +97,14 @@ infiltr scan \
 
 # Generate reports from previous scan results
 infiltr report --input infiltr-results.json --output html
+
+# Compare against a previous scan and gate only on new high-risk findings
+infiltr report \
+  --input infiltr-results.json \
+  --baseline previous-results.json \
+  --only-new \
+  --fail-on-new HIGH \
+  --output sarif
 ```
 
 ## Architecture
@@ -166,6 +174,10 @@ infiltr includes eight mutation operators that transform attack prompts to evade
 - **HTML** -- Styled report with severity badges and remediation guidance for stakeholders
 - **SARIF** -- GitHub Security tab compatible format for code scanning integration
 
+### Baseline Gating
+
+Every JSON and SARIF finding includes a stable fingerprint derived from the ATLAS technique, category, severity, and normalized attack prompt. Use the report command with `--baseline previous-results.json` to compare the current scan with a known baseline, `--only-new` to emit reports containing only newly introduced findings, and `--fail-on-new HIGH` (or another severity) to make CI fail only when new findings meet the chosen risk threshold. Target responses, timestamps, and evidence text are excluded from the fingerprint so reruns can match the same vulnerability without baking sensitive output into the comparison key.
+
 ## CI/CD Integration
 
 ```yaml
@@ -178,10 +190,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install infiltr
-      - run: infiltr scan --target ${{ secrets.API_ENDPOINT }} --output sarif
+      - run: infiltr scan --target ${{ secrets.API_ENDPOINT }} --output all --output-path infiltr-results
+      - run: infiltr report --input infiltr-results.json --baseline security-baseline.json --only-new --fail-on-new HIGH --output sarif --output-path phantom-report
       - uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: infiltr-results.sarif
+          sarif_file: phantom-report.sarif
 ```
 
 ## API Reference

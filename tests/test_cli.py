@@ -262,6 +262,155 @@ class TestReportCommand:
             Path(input_path).unlink(missing_ok=True)
             Path(f"{output_path}.json").unlink(missing_ok=True)
 
+    def test_report_baseline_only_new_json(self):
+        baseline_data = {
+            "findings": [
+                {
+                    "technique_id": "AML.T0051.000",
+                    "technique_name": "Direct Prompt Injection",
+                    "tactic": "Initial Access",
+                    "severity": "HIGH",
+                    "attack_prompt": "known prompt",
+                    "response": "old response",
+                    "reproducibility": 0.8,
+                    "remediation": "Fix.",
+                    "category": "prompt_injection",
+                }
+            ]
+        }
+        current_data = {
+            "findings": [
+                {
+                    "technique_id": "AML.T0051.000",
+                    "technique_name": "Direct Prompt Injection",
+                    "tactic": "Initial Access",
+                    "severity": "HIGH",
+                    "attack_prompt": "known   prompt",
+                    "response": "new response",
+                    "reproducibility": 0.8,
+                    "remediation": "Fix.",
+                    "category": "prompt_injection",
+                },
+                {
+                    "technique_id": "AML.T0054.000",
+                    "technique_name": "Goal Hijacking",
+                    "tactic": "Impact",
+                    "severity": "CRITICAL",
+                    "attack_prompt": "new prompt",
+                    "response": "new response",
+                    "reproducibility": 0.9,
+                    "remediation": "Fix.",
+                    "category": "goal_hijacking",
+                },
+            ]
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(current_data, f)
+            input_path = f.name
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(baseline_data, f)
+            baseline_path = f.name
+
+        output_path = tempfile.mktemp()
+        try:
+            result = runner.invoke(
+                app,
+                [
+                    "report",
+                    "--input",
+                    input_path,
+                    "--baseline",
+                    baseline_path,
+                    "--only-new",
+                    "--output",
+                    "json",
+                    "--output-path",
+                    output_path,
+                ],
+            )
+            assert result.exit_code == 0
+            output = json.loads(Path(f"{output_path}.json").read_text())
+            assert output["summary"]["total_findings"] == 1
+            assert output["summary"]["baseline_comparison"]["new_findings"] == 1
+            assert output["findings"][0]["technique_id"] == "AML.T0054.000"
+        finally:
+            Path(input_path).unlink(missing_ok=True)
+            Path(baseline_path).unlink(missing_ok=True)
+            Path(f"{output_path}.json").unlink(missing_ok=True)
+
+    def test_report_fail_on_new_threshold_exits_two_after_writing(self):
+        baseline_data = {"findings": []}
+        current_data = {
+            "findings": [
+                {
+                    "technique_id": "AML.T0054.000",
+                    "technique_name": "Goal Hijacking",
+                    "tactic": "Impact",
+                    "severity": "HIGH",
+                    "attack_prompt": "new prompt",
+                    "response": "new response",
+                    "reproducibility": 0.9,
+                    "remediation": "Fix.",
+                    "category": "goal_hijacking",
+                }
+            ]
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(current_data, f)
+            input_path = f.name
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(baseline_data, f)
+            baseline_path = f.name
+
+        output_path = tempfile.mktemp()
+        try:
+            result = runner.invoke(
+                app,
+                [
+                    "report",
+                    "--input",
+                    input_path,
+                    "--baseline",
+                    baseline_path,
+                    "--fail-on-new",
+                    "HIGH",
+                    "--output",
+                    "json",
+                    "--output-path",
+                    output_path,
+                ],
+            )
+            assert result.exit_code == 2
+            assert Path(f"{output_path}.json").exists()
+        finally:
+            Path(input_path).unlink(missing_ok=True)
+            Path(baseline_path).unlink(missing_ok=True)
+            Path(f"{output_path}.json").unlink(missing_ok=True)
+
+    def test_report_rejects_invalid_output_format(self):
+        findings_data = {"findings": []}
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
+            json.dump(findings_data, f)
+            input_path = f.name
+
+        try:
+            result = runner.invoke(
+                app,
+                [
+                    "report",
+                    "--input",
+                    input_path,
+                    "--output",
+                    "xml",
+                ],
+            )
+            assert result.exit_code == 1
+            assert "Unknown output format" in result.output
+        finally:
+            Path(input_path).unlink(missing_ok=True)
+
 
 class TestScanCommand:
     """Tests for the scan command."""
