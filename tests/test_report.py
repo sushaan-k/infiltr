@@ -440,28 +440,20 @@ class TestReportGenerationErrors:
 class TestUploadToGitHub:
     """Tests for the upload_to_github helper."""
 
-    def test_noop_when_gh_not_installed(
-        self, sample_findings, monkeypatch
-    ):
+    def test_noop_when_gh_not_installed(self, sample_findings, monkeypatch):
         """upload_to_github returns False when gh CLI is absent."""
         import shutil as _shutil
 
-        monkeypatch.setattr(
-            _shutil, "which", lambda _name: None
-        )
+        monkeypatch.setattr(_shutil, "which", lambda _name: None)
         report = ATLASReport(sample_findings)
         assert report.upload_to_github() is False
 
-    def test_returns_true_on_success(
-        self, sample_findings, monkeypatch
-    ):
+    def test_returns_true_on_success(self, sample_findings, monkeypatch):
         """upload_to_github returns True when gh succeeds."""
         import shutil as _shutil
         import subprocess as _subprocess
 
-        monkeypatch.setattr(
-            _shutil, "which", lambda _name: "/usr/bin/gh"
-        )
+        monkeypatch.setattr(_shutil, "which", lambda _name: "/usr/bin/gh")
 
         fake_result = _subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
@@ -475,16 +467,12 @@ class TestUploadToGitHub:
         report = ATLASReport(sample_findings)
         assert report.upload_to_github(repo="org/repo") is True
 
-    def test_returns_false_on_failure(
-        self, sample_findings, monkeypatch
-    ):
+    def test_returns_false_on_failure(self, sample_findings, monkeypatch):
         """upload_to_github returns False when gh fails."""
         import shutil as _shutil
         import subprocess as _subprocess
 
-        monkeypatch.setattr(
-            _shutil, "which", lambda _name: "/usr/bin/gh"
-        )
+        monkeypatch.setattr(_shutil, "which", lambda _name: "/usr/bin/gh")
 
         fake_result = _subprocess.CompletedProcess(
             args=[], returncode=1, stdout="", stderr="error"
@@ -498,16 +486,12 @@ class TestUploadToGitHub:
         report = ATLASReport(sample_findings)
         assert report.upload_to_github() is False
 
-    def test_handles_subprocess_timeout(
-        self, sample_findings, monkeypatch
-    ):
+    def test_handles_subprocess_timeout(self, sample_findings, monkeypatch):
         """upload_to_github returns False on subprocess timeout."""
         import shutil as _shutil
         import subprocess as _subprocess
 
-        monkeypatch.setattr(
-            _shutil, "which", lambda _name: "/usr/bin/gh"
-        )
+        monkeypatch.setattr(_shutil, "which", lambda _name: "/usr/bin/gh")
 
         def _raise(*_a, **_kw):
             raise _subprocess.TimeoutExpired(cmd="gh", timeout=30)

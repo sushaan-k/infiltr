@@ -106,10 +106,7 @@ class MutationEngine:
         if mutation_weights is not None:
             for key, weight in mutation_weights.items():
                 if weight < 0:
-                    msg = (
-                        f"Weight for '{key}' must be non-negative, "
-                        f"got {weight}"
-                    )
+                    msg = f"Weight for '{key}' must be non-negative, got {weight}"
                     raise ValueError(msg)
                 self._mutation_weights[key] = weight
         self._operators: dict[str, Callable[[str, dict[str, Any]], str]] = {
@@ -221,12 +218,8 @@ class MutationEngine:
             The mutated prompt.
         """
         all_ops = list(MutationOperator)
-        weights = [
-            self._mutation_weights.get(op.value, 1.0) for op in all_ops
-        ]
-        operators = self._rng.choices(
-            all_ops, weights=weights, k=num_mutations
-        )
+        weights = [self._mutation_weights.get(op.value, 1.0) for op in all_ops]
+        operators = self._rng.choices(all_ops, weights=weights, k=num_mutations)
         result = prompt
         for op in operators:
             result = self.mutate(result, op)
