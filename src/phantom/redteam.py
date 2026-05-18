@@ -167,6 +167,22 @@ class RedTeamResults(BaseModel):
             "success_rate": round(successes / len(self.probes), 4),
         }
 
+    @property
+    def budget_by_category(self) -> dict[str, dict[str, float]]:
+        """Return budget metrics grouped by attack category."""
+        grouped: dict[str, list[ProbeResult]] = {}
+        for probe in self.probes:
+            grouped.setdefault(probe.category.value, []).append(probe)
+
+        summaries: dict[str, dict[str, float]] = {}
+        for category, probes in sorted(grouped.items()):
+            partial = RedTeamResults(probes=probes)
+            summaries[category] = {
+                "probes": float(len(probes)),
+                **partial.budget_summary,
+            }
+        return summaries
+
 
 class RedTeam:
     """Main orchestrator for RL-based adversarial red-team assessments.
