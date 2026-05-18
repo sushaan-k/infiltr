@@ -168,17 +168,17 @@ class RedTeamResults(BaseModel):
         }
 
     @property
-    def budget_by_category(self) -> dict[str, dict[str, float]]:
+    def budget_by_category(self) -> dict[str, dict[str, int | float]]:
         """Return budget metrics grouped by attack category."""
         grouped: dict[str, list[ProbeResult]] = {}
         for probe in self.probes:
             grouped.setdefault(probe.category.value, []).append(probe)
 
-        summaries: dict[str, dict[str, float]] = {}
+        summaries: dict[str, dict[str, int | float]] = {}
         for category, probes in sorted(grouped.items()):
             partial = RedTeamResults(probes=probes)
             summaries[category] = {
-                "probes": float(len(probes)),
+                "probes": len(probes),
                 **partial.budget_summary,
             }
         return summaries
