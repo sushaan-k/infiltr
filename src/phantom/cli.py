@@ -13,9 +13,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from phantom.atlas.baseline import parse_severity
 from phantom.logging import configure_logging
 
 if TYPE_CHECKING:
+    from phantom.atlas.baseline import BaselineComparison
     from phantom.redteam import RedTeamResults
 
 app = typer.Typer(
@@ -170,11 +172,13 @@ async def _run_scan(
 
     report = ATLASReport(results)
 
-    formats = ["json", "html", "sarif"] if output_format == "all" else [output_format]
+    formats = _resolve_output_formats(
+        output_format,
+        all_formats=["json", "html", "sarif"],
+    )
 
     for fmt in formats:
-        ext = fmt if fmt != "json" else "json"
-        path = f"{output_path}.{ext}"
+        path = f"{output_path}.{fmt}"
         if fmt == "json":
             report.to_json(path)
         elif fmt == "html":
@@ -242,26 +246,70 @@ def report(
         "-p",
         help="Output file path (without extension).",
     ),
+    baseline_path: str | None = typer.Option(
+        None,
+        "--baseline",
+        help="Path to a previous phantom JSON report to compare against.",
+    ),
+    only_new: bool = typer.Option(
+        False,
+        "--only-new",
+        help="Write reports containing only findings absent from the baseline.",
+    ),
+    fail_on_new: str | None = typer.Option(
+        None,
+        "--fail-on-new",
+        help="Exit 2 when new findings at or above this severity are present.",
+    ),
 ) -> None:
     """Generate reports from a previous scan's JSON results."""
     from phantom.atlas.report import ATLASReport
 
     configure_logging()
 
-    path = Path(input_path)
-    if not path.exists():
-        console.print(f"[red]Error:[/red] File not found: {input_path}")
+    if (only_new or fail_on_new) and baseline_path is None:
+        console.print(
+            "[red]Error:[/red] --only-new and --fail-on-new require --baseline"
+        )
         raise typer.Exit(code=1)
 
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, KeyError, Exception) as exc:
-        console.print(f"[red]Error:[/red] Failed to parse input: {exc}")
-        raise typer.Exit(code=1) from exc
+    data = _load_report_json(input_path, label="input")
 
     atlas_report = ATLASReport(data)
+    comparison: BaselineComparison | None = None
+    threshold_met = False
 
-    formats = ["html", "sarif"] if output_format == "all" else [output_format]
+    if baseline_path is not None:
+        baseline_report = ATLASReport(
+            _load_report_json(baseline_path, label="baseline")
+        )
+        comparison = atlas_report.compare_to(baseline_report)
+        _print_baseline_summary(comparison)
+        summary_updates = {"baseline_comparison": comparison.to_summary()}
+
+        if only_new:
+            atlas_report = atlas_report.with_findings(
+                comparison.new_findings,
+                summary_updates=summary_updates,
+            )
+        else:
+            atlas_report = atlas_report.with_findings(
+                atlas_report.findings,
+                summary_updates=summary_updates,
+            )
+
+        if fail_on_new is not None:
+            try:
+                threshold = parse_severity(fail_on_new)
+            except ValueError as exc:
+                console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(code=1) from exc
+            threshold_met = comparison.has_new_at_or_above(threshold)
+
+    formats = _resolve_output_formats(
+        output_format,
+        all_formats=["html", "sarif"],
+    )
 
     for fmt in formats:
         out = f"{output_path}.{fmt}"
@@ -273,6 +321,14 @@ def report(
             atlas_report.to_json(out)
         console.print(f"  [green]Wrote {fmt.upper()} report:[/green] {out}")
 
+    if threshold_met:
+        assert comparison is not None
+        console.print(
+            "[red]New findings exceeded threshold:[/red] "
+            f"{comparison.new_count} new finding(s)"
+        )
+        raise typer.Exit(code=2)
+
 
 @app.command()
 def version() -> None:
@@ -280,6 +336,54 @@ def version() -> None:
     from phantom import __version__
 
     output_console.print(f"phantom {__version__}")
+
+
+def _load_report_json(path_value: str, *, label: str) -> dict[str, object]:
+    """Load a report JSON file for CLI commands."""
+    path = Path(path_value)
+    if not path.exists():
+        console.print(f"[red]Error:[/red] {label.title()} file not found: {path_value}")
+        raise typer.Exit(code=1)
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]Error:[/red] Failed to parse {label}: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if not isinstance(data, dict):
+        console.print(f"[red]Error:[/red] {label.title()} report must be a JSON object")
+        raise typer.Exit(code=1)
+    return data
+
+
+def _resolve_output_formats(
+    output_format: str,
+    *,
+    all_formats: list[str],
+) -> list[str]:
+    """Resolve and validate report output format options."""
+    allowed = {"json", "html", "sarif", "all"}
+    normalized = output_format.lower()
+    if normalized not in allowed:
+        console.print(
+            "[red]Error:[/red] "
+            f"Unknown output format '{output_format}'. Valid: all, html, json, sarif"
+        )
+        raise typer.Exit(code=1)
+    if normalized == "all":
+        return all_formats
+    return [normalized]
+
+
+def _print_baseline_summary(comparison: BaselineComparison) -> None:
+    """Print a concise baseline comparison summary."""
+    console.print(
+        "[blue]Baseline comparison:[/blue] "
+        f"{comparison.new_count} new, "
+        f"{comparison.unchanged_count} unchanged, "
+        f"{comparison.resolved_count} resolved"
+    )
 
 
 if __name__ == "__main__":

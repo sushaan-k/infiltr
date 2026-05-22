@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 from jinja2 import BaseLoader, Environment
 
+from phantom.atlas.baseline import (
+    BaselineComparison,
+    compare_findings,
+    finding_fingerprint,
+)
 from phantom.exceptions import ReportGenerationError
 from phantom.logging import get_logger
 from phantom.models import Finding, Severity
@@ -158,7 +163,9 @@ class ATLASReport:
         elif isinstance(results, dict):
             findings_data = results.get("findings") or []
             self._findings = [
-                finding if isinstance(finding, Finding) else Finding(**finding)
+                finding
+                if isinstance(finding, Finding)
+                else _finding_from_mapping(finding)
                 for finding in findings_data
             ]
             self._summary = dict(results.get("summary") or {})
@@ -187,6 +194,28 @@ class ATLASReport:
     def findings(self) -> list[Finding]:
         """Return the list of findings."""
         return self._findings
+
+    def compare_to(self, baseline: ATLASReport | list[Finding]) -> BaselineComparison:
+        """Compare this report's findings against a baseline report."""
+        baseline_findings = (
+            baseline.findings if isinstance(baseline, ATLASReport) else baseline
+        )
+        return compare_findings(self._findings, baseline_findings)
+
+    def with_findings(
+        self,
+        findings: list[Finding],
+        *,
+        summary_updates: dict[str, Any] | None = None,
+    ) -> ATLASReport:
+        """Return a report carrying the same summary but a different finding list."""
+        report = ATLASReport(findings)
+        report._summary = dict(self._summary)
+        if summary_updates:
+            report._summary.update(summary_updates)
+        report._total_probes = self._total_probes
+        report._novel_count = self._novel_count
+        return report
 
     def count_by_severity(self, severity: str | Severity) -> int:
         """Count findings at a given severity level.
@@ -226,7 +255,7 @@ class ATLASReport:
                 "phantom_version": "0.1.0",
                 "generated_at": datetime.now(UTC).isoformat(),
                 "summary": summary,
-                "findings": [json.loads(f.model_dump_json()) for f in self._findings],
+                "findings": [_finding_to_dict(f) for f in self._findings],
             }
             Path(path).write_text(
                 json.dumps(data, indent=2, default=str),
@@ -329,6 +358,7 @@ class ATLASReport:
                             )
                         },
                         "properties": {
+                            "fingerprint": finding_fingerprint(finding),
                             "attack_prompt": finding.attack_prompt[:500],
                             "response_preview": finding.response[:500],
                             "reproducibility": finding.reproducibility,
@@ -460,8 +490,29 @@ class ATLASReport:
         )
         return {
             "summary": summary,
-            "findings": [json.loads(f.model_dump_json()) for f in self._findings],
+            "findings": [_finding_to_dict(f) for f in self._findings],
         }
+
+
+def _finding_from_mapping(data: object) -> Finding:
+    """Build a Finding while preserving exported fingerprints in metadata."""
+    if not isinstance(data, dict):
+        return Finding.model_validate(data)
+
+    payload = dict(data)
+    fingerprint = payload.pop("fingerprint", None)
+    if fingerprint is not None:
+        metadata = dict(payload.get("metadata") or {})
+        metadata.setdefault("fingerprint", fingerprint)
+        payload["metadata"] = metadata
+    return Finding(**payload)
+
+
+def _finding_to_dict(finding: Finding) -> dict[str, Any]:
+    """Serialize a finding with the stable baseline fingerprint included."""
+    data: dict[str, Any] = json.loads(finding.model_dump_json())
+    data["fingerprint"] = finding_fingerprint(finding)
+    return data
 
 
 def _coerce_summary_count(value: object, *, default: int) -> int:
