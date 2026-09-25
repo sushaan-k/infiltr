@@ -1,6 +1,6 @@
 """Example: CI/CD integration for automated LLM security scanning.
 
-This example shows how to integrate Phantom into a CI pipeline.
+This example shows how to integrate infiltr into a CI pipeline.
 It runs a focused scan, checks for critical findings, and exits
 with appropriate return codes for CI gate enforcement.
 
@@ -16,7 +16,7 @@ import asyncio
 import os
 import sys
 
-from phantom import ATLASReport, RedTeam, Target
+from infiltr import ATLASReport, RedTeam, Target
 
 
 async def main() -> int:
@@ -57,7 +57,7 @@ async def main() -> int:
     )
 
     try:
-        print("Running Phantom security scan...")
+        print("Running infiltr security scan...")
         results = await red_team.run()
     except Exception as exc:
         print(f"ERROR: Scan failed: {exc}")
@@ -65,8 +65,8 @@ async def main() -> int:
 
     # Generate SARIF for GitHub Security tab
     report = ATLASReport(results)
-    report.to_sarif("phantom-results.sarif")
-    report.to_json("phantom-results.json")
+    report.to_sarif("infiltr-results.sarif")
+    report.to_json("infiltr-results.json")
 
     # Print summary
     print(f"\nScan complete: {results.total_probes} probes sent")
@@ -86,7 +86,7 @@ async def main() -> int:
         return 1
 
     # Optional: also fail on high-severity findings
-    fail_on_high = os.environ.get("PHANTOM_FAIL_ON_HIGH", "false").lower()
+    fail_on_high = os.environ.get("INFILTR_FAIL_ON_HIGH", "false").lower()
     if fail_on_high == "true" and high > 0:
         print(f"\nFAILED: {high} high-severity vulnerabilities detected.")
         return 1

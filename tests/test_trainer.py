@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.learner.policy import PolicyNetwork, PolicyState
-from phantom.learner.trainer import RLTrainer, TrainerConfig
+from infiltr.learner.policy import PolicyNetwork, PolicyState
+from infiltr.learner.trainer import RLTrainer, TrainerConfig
 
 
 class TestTrainerConfig:

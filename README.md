@@ -49,7 +49,7 @@ pip install infiltr
 
 ```python
 import asyncio
-from phantom import RedTeam, Target, ATLASReport
+from infiltr import RedTeam, Target, ATLASReport
 
 async def main():
     target = Target(
@@ -191,10 +191,10 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install infiltr
       - run: infiltr scan --target ${{ secrets.API_ENDPOINT }} --output all --output-path infiltr-results
-      - run: infiltr report --input infiltr-results.json --baseline security-baseline.json --only-new --fail-on-new HIGH --output sarif --output-path phantom-report
+      - run: infiltr report --input infiltr-results.json --baseline security-baseline.json --only-new --fail-on-new HIGH --output sarif --output-path infiltr-report
       - uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: phantom-report.sarif
+          sarif_file: infiltr-report.sarif
 ```
 
 ## API Reference
@@ -265,8 +265,8 @@ results.atlas_coverage_pct    # Percentage of ATLAS techniques represented in th
 ## Project Structure
 
 ```
-phantom/
-  src/phantom/
+infiltr/
+  src/infiltr/
     __init__.py          # Public API exports
     redteam.py           # Main orchestrator
     target.py            # Target interface
@@ -316,7 +316,7 @@ pytest tests/ -v
 ruff check src/ tests/
 
 # Run type checker
-mypy src/phantom/
+mypy src/infiltr/
 ```
 
 ## Research References

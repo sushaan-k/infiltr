@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.atlas.mapper import ATLASMapper
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.models import (
+from infiltr.atlas.mapper import ATLASMapper
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.models import (
     AttackCategory,
     OutcomeType,
     ProbeResult,

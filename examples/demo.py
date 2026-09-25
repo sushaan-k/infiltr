@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Offline demo for phantom."""
+"""Offline demo for infiltr."""
 
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
 
-from phantom import ATLASReport
-from phantom.models import AttackCategory, Finding, Severity
+from infiltr import ATLASReport
+from infiltr.models import AttackCategory, Finding, Severity
 
 
 def main() -> None:
@@ -39,13 +39,13 @@ def main() -> None:
     ]
     report = ATLASReport(findings)
 
-    output_dir = Path(tempfile.mkdtemp(prefix="phantom-demo-"))
+    output_dir = Path(tempfile.mkdtemp(prefix="infiltr-demo-"))
     json_path = output_dir / "report.json"
     html_path = output_dir / "report.html"
     report.to_json(json_path)
     report.to_html(html_path)
 
-    print("phantom demo")
+    print("infiltr demo")
     print(f"findings: {len(report.findings)}")
     print(f"critical findings: {report.count_by_severity('CRITICAL')}")
     print(f"json report: {json_path}")

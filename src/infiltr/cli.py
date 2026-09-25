@@ -1,4 +1,4 @@
-"""Command-line interface for Phantom."""
+"""Command-line interface for infiltr."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from phantom.atlas.baseline import parse_severity
-from phantom.logging import configure_logging
+from infiltr.atlas.baseline import parse_severity
+from infiltr.logging import configure_logging
 
 if TYPE_CHECKING:
-    from phantom.atlas.baseline import BaselineComparison
-    from phantom.redteam import RedTeamResults
+    from infiltr.atlas.baseline import BaselineComparison
+    from infiltr.redteam import RedTeamResults
 
 app = typer.Typer(
-    name="phantom",
+    name="infiltr",
     help="RL-based adversarial red-team agent for LLM systems.",
     no_args_is_help=True,
 )
@@ -44,7 +44,7 @@ def scan(
         help="Output format: json, html, sarif, or all.",
     ),
     output_path: str = typer.Option(
-        "phantom-results",
+        "infiltr-results",
         "--output-path",
         "-p",
         help="Output file path (without extension).",
@@ -96,7 +96,7 @@ def scan(
 
     console.print(
         Panel.fit(
-            "[bold blue]Phantom[/bold blue] "
+            "[bold blue]infiltr[/bold blue] "
             "[dim]RL-based adversarial red-team agent[/dim]",
             border_style="blue",
         )
@@ -146,9 +146,9 @@ async def _run_scan(
         multi_turn: Whether to use multi-turn strategies.
         auth: Authentication headers.
     """
-    from phantom.atlas.report import ATLASReport
-    from phantom.redteam import RedTeam
-    from phantom.target import Target
+    from infiltr.atlas.report import ATLASReport
+    from infiltr.redteam import RedTeam
+    from infiltr.target import Target
 
     target = Target(endpoint=target_url, auth=auth)
     red_team = RedTeam(
@@ -232,7 +232,7 @@ def report(
         ...,
         "--input",
         "-i",
-        help="Path to a phantom results JSON file.",
+        help="Path to a infiltr results JSON file.",
     ),
     output_format: str = typer.Option(
         "html",
@@ -241,7 +241,7 @@ def report(
         help="Output format: html, sarif, or all.",
     ),
     output_path: str = typer.Option(
-        "phantom-report",
+        "infiltr-report",
         "--output-path",
         "-p",
         help="Output file path (without extension).",
@@ -249,7 +249,7 @@ def report(
     baseline_path: str | None = typer.Option(
         None,
         "--baseline",
-        help="Path to a previous phantom JSON report to compare against.",
+        help="Path to a previous infiltr JSON report to compare against.",
     ),
     only_new: bool = typer.Option(
         False,
@@ -263,7 +263,7 @@ def report(
     ),
 ) -> None:
     """Generate reports from a previous scan's JSON results."""
-    from phantom.atlas.report import ATLASReport
+    from infiltr.atlas.report import ATLASReport
 
     configure_logging()
 
@@ -332,10 +332,10 @@ def report(
 
 @app.command()
 def version() -> None:
-    """Print the Phantom version."""
-    from phantom import __version__
+    """Print the infiltr version."""
+    from infiltr import __version__
 
-    output_console.print(f"phantom {__version__}")
+    output_console.print(f"infiltr {__version__}")
 
 
 def _load_report_json(path_value: str, *, label: str) -> dict[str, object]:

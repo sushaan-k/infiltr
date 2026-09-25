@@ -9,15 +9,16 @@ from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
-from phantom.cli import app
-from phantom.models import (
+import infiltr
+from infiltr.cli import app
+from infiltr.models import (
     AttackCategory,
     Finding,
     OutcomeType,
     ProbeResult,
     Severity,
 )
-from phantom.redteam import RedTeamResults
+from infiltr.redteam import RedTeamResults
 
 runner = CliRunner()
 
@@ -28,8 +29,8 @@ class TestVersionCommand:
     def test_version_output(self):
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "phantom" in result.output
-        assert "0.1.0" in result.output
+        assert "infiltr" in result.output
+        assert infiltr.__version__ in result.output
 
 
 class TestReportCommand:
@@ -88,7 +89,7 @@ class TestReportCommand:
             assert result.exit_code == 0
             assert Path(f"{output_path}.html").exists()
             html_content = Path(f"{output_path}.html").read_text()
-            assert "Phantom" in html_content
+            assert "infiltr" in html_content
         finally:
             Path(input_path).unlink(missing_ok=True)
             Path(f"{output_path}.html").unlink(missing_ok=True)
@@ -458,7 +459,7 @@ class TestScanCommand:
         )
 
     def test_scan_basic(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -475,7 +476,7 @@ class TestScanCommand:
             mock_scan.assert_called_once()
 
     def test_scan_with_categories(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -496,7 +497,7 @@ class TestScanCommand:
             ]
 
     def test_scan_with_auth_header(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -514,7 +515,7 @@ class TestScanCommand:
             assert call_kwargs["auth"] == {"Authorization": "Bearer sk-test123"}
 
     def test_scan_all_output_formats(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -530,7 +531,7 @@ class TestScanCommand:
             assert call_kwargs["output_format"] == "all"
 
     def test_scan_verbose_mode(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock):
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock):
             result = runner.invoke(
                 app,
                 [
@@ -545,7 +546,7 @@ class TestScanCommand:
             assert result.exit_code == 0
 
     def test_scan_no_multi_turn(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -562,7 +563,7 @@ class TestScanCommand:
             assert call_kwargs["multi_turn"] is False
 
     def test_scan_custom_attack_model(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock) as mock_scan:
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock) as mock_scan:
             result = runner.invoke(
                 app,
                 [
@@ -580,7 +581,7 @@ class TestScanCommand:
             assert call_kwargs["attack_model"] == "gpt-3.5-turbo"
 
     def test_scan_json_logs(self):
-        with patch("phantom.cli._run_scan", new_callable=AsyncMock):
+        with patch("infiltr.cli._run_scan", new_callable=AsyncMock):
             result = runner.invoke(
                 app,
                 [
@@ -609,7 +610,7 @@ class TestPrintSummary:
     """Test the _print_summary helper function."""
 
     def test_print_summary_with_findings(self):
-        from phantom.cli import _print_summary
+        from infiltr.cli import _print_summary
 
         results = RedTeamResults(
             findings=[
@@ -633,7 +634,7 @@ class TestPrintSummary:
         _print_summary(results)
 
     def test_print_summary_empty_results(self):
-        from phantom.cli import _print_summary
+        from infiltr.cli import _print_summary
 
         results = RedTeamResults()
         _print_summary(results)

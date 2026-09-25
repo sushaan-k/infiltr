@@ -9,11 +9,11 @@ import torch
 import torch.nn as nn
 from pydantic import BaseModel, Field
 
-from phantom.exceptions import PolicyError
-from phantom.logging import get_logger
-from phantom.models import AttackAction, AttackCategory
+from infiltr.exceptions import PolicyError
+from infiltr.logging import get_logger
+from infiltr.models import AttackAction, AttackCategory
 
-logger = get_logger("phantom.learner.policy")
+logger = get_logger("infiltr.learner.policy")
 
 MUTATION_OPERATORS: list[str] = [
     "synonym_replacement",

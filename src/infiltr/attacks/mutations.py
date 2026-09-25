@@ -8,9 +8,9 @@ import random
 from collections.abc import Callable
 from typing import Any
 
-from phantom.logging import get_logger
+from infiltr.logging import get_logger
 
-logger = get_logger("phantom.attacks.mutations")
+logger = get_logger("infiltr.attacks.mutations")
 
 
 class MutationOperator(str, enum.Enum):

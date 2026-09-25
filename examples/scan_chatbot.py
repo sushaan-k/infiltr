@@ -14,7 +14,7 @@ import asyncio
 import os
 import sys
 
-from phantom import ATLASReport, RedTeam, Target
+from infiltr import ATLASReport, RedTeam, Target
 
 _REQUIRED_ENV = ["OPENAI_API_KEY"]
 

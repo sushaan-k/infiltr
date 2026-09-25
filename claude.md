@@ -1,4 +1,4 @@
-# phantom
+# infiltr
 
 ## Adversarial Red-Team Agent for LLM Systems
 
@@ -12,13 +12,13 @@ Meanwhile, MITRE released **ATLAS** (Adversarial Threat Landscape for AI Systems
 
 ### The Solution
 
-`phantom` is an **autonomous red-team agent** that uses reinforcement learning to discover novel attack strategies against any LLM application. It doesn't just test known attacks — it learns new ones by interacting with the target system.
+`infiltr` is an **autonomous red-team agent** that uses reinforcement learning to discover novel attack strategies against any LLM application. It doesn't just test known attacks — it learns new ones by interacting with the target system.
 
 ### How It Works
 
 ```
 ┌──────────────────────────────────────────────┐
-│              phantom                          │
+│              infiltr                          │
 │                                               │
 │  ┌─────────────┐    ┌──────────────────────┐  │
 │  │  Attack      │    │  Strategy Learner    │  │
@@ -83,7 +83,7 @@ Meanwhile, MITRE released **ATLAS** (Adversarial Threat Landscape for AI Systems
 
 ### RL Strategy Learner
 
-The core innovation. Instead of a static attack list, phantom uses a **policy network** that learns which attack strategies work against the specific target.
+The core innovation. Instead of a static attack list, infiltr uses a **policy network** that learns which attack strategies work against the specific target.
 
 **State space**:
 - Response patterns (refusal templates, hedging language, compliance signals)
@@ -143,13 +143,13 @@ Output formats:
 ### API Surface (Draft)
 
 ```python
-from phantom import RedTeam, Target, ATLASReport
+from infiltr import RedTeam, Target, ATLASReport
 
 # Define the target
 target = Target(
     endpoint="https://api.example.com/chat",
     auth={"Authorization": "Bearer ..."},
-    system_prompt_known=False,  # phantom will try to extract it
+    system_prompt_known=False,  # infiltr will try to extract it
 )
 
 # Configure the red team
@@ -186,15 +186,15 @@ print(f"ATLAS coverage: {results.atlas_coverage_pct}%")
 name: LLM Security Scan
 on: [push]
 jobs:
-  phantom-scan:
+  infiltr-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install phantom-redteam
-      - run: phantom scan --target ${{ secrets.API_ENDPOINT }} --output sarif
+      - run: pip install infiltr
+      - run: infiltr scan --target ${{ secrets.API_ENDPOINT }} --output sarif
       - uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: phantom-results.sarif
+          sarif_file: infiltr-results.sarif
 ```
 
 ### What Makes This Novel
@@ -208,11 +208,11 @@ jobs:
 ### Repo Structure
 
 ```
-phantom/
+infiltr/
 ├── README.md
 ├── pyproject.toml
 ├── src/
-│   └── phantom/
+│   └── infiltr/
 │       ├── __init__.py
 │       ├── redteam.py          # Main orchestrator
 │       ├── target.py           # Target interface

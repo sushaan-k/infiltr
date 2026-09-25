@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.logging import get_logger
-from phantom.models import (
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.logging import get_logger
+from infiltr.models import (
     AttackCategory,
     Finding,
     OutcomeType,
@@ -12,7 +12,7 @@ from phantom.models import (
     Severity,
 )
 
-logger = get_logger("phantom.atlas.mapper")
+logger = get_logger("infiltr.atlas.mapper")
 
 _SEVERITY_RANK = {severity: idx for idx, severity in enumerate(Severity)}
 

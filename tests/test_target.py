@@ -6,9 +6,9 @@ import httpx
 import pytest
 import respx
 
-from phantom.exceptions import TargetResponseError
-from phantom.models import Conversation
-from phantom.target import ProbeTimeoutResult, Target, TargetConfig
+from infiltr.exceptions import TargetResponseError
+from infiltr.models import Conversation
+from infiltr.target import ProbeTimeoutResult, Target, TargetConfig
 
 
 class TestTargetConfig:
@@ -218,7 +218,7 @@ class TestTarget:
     @respx.mock
     async def test_send_probe_server_error_exhausted(self) -> None:
         """Test that exhausted retries raise TargetConnectionError."""
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         route = respx.post("https://api.example.com/chat")
         route.side_effect = [
@@ -238,7 +238,7 @@ class TestTarget:
     @respx.mock
     async def test_send_probe_timeout_retries(self) -> None:
         """Test that timeouts are retried and eventually raise."""
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         route = respx.post("https://api.example.com/chat")
         route.side_effect = httpx.ReadTimeout("Timeout")
@@ -256,7 +256,7 @@ class TestTarget:
     @respx.mock
     async def test_send_probe_connect_error(self) -> None:
         """Test that connection errors are normalized after retries."""
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         route = respx.post("https://api.example.com/chat")
         route.side_effect = httpx.ConnectError("Connection refused")
@@ -270,7 +270,7 @@ class TestTarget:
     @respx.mock
     async def test_send_probe_transport_error_normalized(self) -> None:
         """Test that transport-layer errors are normalized to TargetConnectionError."""
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         route = respx.post("https://api.example.com/chat")
         route.side_effect = httpx.RemoteProtocolError("Server disconnected")

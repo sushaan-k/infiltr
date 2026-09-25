@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from phantom.models import AttackCategory, OutcomeType, ProbeResult
+from infiltr.models import AttackCategory, OutcomeType, ProbeResult
 
 
 @dataclass

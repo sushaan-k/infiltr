@@ -1,4 +1,4 @@
-"""Structured logging configuration for Phantom."""
+"""Structured logging configuration for infiltr."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def configure_logging(
     level: str = "INFO",
     json_output: bool = False,
 ) -> structlog.stdlib.BoundLogger:
-    """Configure structured logging for Phantom.
+    """Configure structured logging for infiltr.
 
     Args:
         level: Log level string (DEBUG, INFO, WARNING, ERROR, CRITICAL).
@@ -68,16 +68,16 @@ def configure_logging(
     for name in ("httpx", "httpcore", "openai", "urllib3"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
-    return structlog.get_logger("phantom")  # type: ignore[no-any-return]
+    return structlog.get_logger("infiltr")  # type: ignore[no-any-return]
 
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     """Get a structlog logger instance.
 
     Args:
-        name: Optional logger name. Defaults to 'phantom'.
+        name: Optional logger name. Defaults to 'infiltr'.
 
     Returns:
         A structlog bound logger.
     """
-    return structlog.get_logger(name or "phantom")  # type: ignore[no-any-return]
+    return structlog.get_logger(name or "infiltr")  # type: ignore[no-any-return]

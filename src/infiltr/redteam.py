@@ -7,15 +7,15 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from phantom.atlas.mapper import ATLASMapper
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.attacks.generator import AttackGenerator
-from phantom.exceptions import ConfigurationError, PhantomError
-from phantom.learner.policy import PolicyNetwork, PolicyState
-from phantom.learner.reward import RewardClassifier
-from phantom.learner.trainer import RLTrainer, TrainerConfig
-from phantom.logging import get_logger
-from phantom.models import (
+from infiltr.atlas.mapper import ATLASMapper
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.attacks.generator import AttackGenerator
+from infiltr.exceptions import ConfigurationError, InfiltrError
+from infiltr.learner.policy import PolicyNetwork, PolicyState
+from infiltr.learner.reward import RewardClassifier
+from infiltr.learner.trainer import RLTrainer, TrainerConfig
+from infiltr.logging import get_logger
+from infiltr.models import (
     AttackAction,
     AttackCategory,
     Conversation,
@@ -24,9 +24,9 @@ from phantom.models import (
     ProbeResult,
     Severity,
 )
-from phantom.target import Target
+from infiltr.target import Target
 
-logger = get_logger("phantom.redteam")
+logger = get_logger("infiltr.redteam")
 
 
 class RedTeamConfig(BaseModel):
@@ -314,11 +314,11 @@ class RedTeam:
                     total_so_far=interaction_count,
                 )
 
-        except PhantomError:
+        except InfiltrError:
             raise
         except Exception as exc:
             logger.error("assessment_error", error=str(exc))
-            raise PhantomError(f"Assessment failed: {exc}") from exc
+            raise InfiltrError(f"Assessment failed: {exc}") from exc
         finally:
             await self._cleanup()
 
@@ -419,7 +419,7 @@ class RedTeam:
 
         try:
             response_text, latency_ms = await self._target.send_probe(prompt)
-        except PhantomError as exc:
+        except InfiltrError as exc:
             logger.warning("probe_failed", error=str(exc))
             return None
 
@@ -477,7 +477,7 @@ class RedTeam:
                 response_text, latency_ms = await self._target.send_conversation_turn(
                     prompt, conversation
                 )
-            except PhantomError as exc:
+            except InfiltrError as exc:
                 logger.warning(
                     "multi_turn_probe_failed",
                     turn=turn,

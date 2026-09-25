@@ -339,6 +339,56 @@ wheels = [
 ]
 
 [[package]]
+name = "infiltr"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "numpy" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "structlog" },
+    { name = "torch" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "respx" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27,<1.0" },
+    { name = "jinja2", specifier = ">=3.1,<4.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10,<2.0" },
+    { name = "numpy", specifier = ">=1.26,<3.0" },
+    { name = "openai", specifier = ">=1.30,<2.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7,<4.0" },
+    { name = "pydantic", specifier = ">=2.0,<3.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0,<9.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23,<1.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0,<6.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14,<4.0" },
+    { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21,<1.0" },
+    { name = "rich", specifier = ">=13.0,<14.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5,<1.0" },
+    { name = "structlog", specifier = ">=24.0,<26.0" },
+    { name = "torch", specifier = ">=2.2,<3.0" },
+    { name = "typer", specifier = ">=0.12,<1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -951,56 +1001,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/fa/36/e27608899f9b8d4df
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/3c/2c197d226f9ea224a9ab8d197933f9da0ae0aac5b6e0f884e2b8d9c8e9f7/pathspec-1.0.4-py3-none-any.whl", hash = "sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723", size = 55206, upload-time = "2026-01-27T03:59:45.137Z" },
 ]
-
-[[package]]
-name = "phantom-redteam"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "jinja2" },
-    { name = "numpy" },
-    { name = "openai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "torch" },
-    { name = "typer" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "respx" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27,<1.0" },
-    { name = "jinja2", specifier = ">=3.1,<4.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10,<2.0" },
-    { name = "numpy", specifier = ">=1.26,<3.0" },
-    { name = "openai", specifier = ">=1.30,<2.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7,<4.0" },
-    { name = "pydantic", specifier = ">=2.0,<3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0,<9.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23,<1.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0,<6.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14,<4.0" },
-    { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21,<1.0" },
-    { name = "rich", specifier = ">=13.0,<14.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5,<1.0" },
-    { name = "structlog", specifier = ">=24.0,<26.0" },
-    { name = "torch", specifier = ">=2.2,<3.0" },
-    { name = "typer", specifier = ">=0.12,<1.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "platformdirs"

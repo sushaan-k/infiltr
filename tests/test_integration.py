@@ -1,4 +1,4 @@
-"""Integration tests for the Phantom pipeline."""
+"""Integration tests for the infiltr pipeline."""
 
 from __future__ import annotations
 
@@ -6,27 +6,27 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from phantom.atlas.mapper import ATLASMapper
-from phantom.atlas.report import ATLASReport
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.attacks.mutations import MutationEngine
-from phantom.learner.policy import PolicyNetwork, PolicyState
-from phantom.learner.reward import RewardClassifier
-from phantom.learner.trainer import RLTrainer
-from phantom.models import (
+from infiltr.atlas.mapper import ATLASMapper
+from infiltr.atlas.report import ATLASReport
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.attacks.mutations import MutationEngine
+from infiltr.learner.policy import PolicyNetwork, PolicyState
+from infiltr.learner.reward import RewardClassifier
+from infiltr.learner.trainer import RLTrainer
+from infiltr.models import (
     AttackCategory,
     OutcomeType,
     ProbeResult,
 )
-from phantom.redteam import RedTeam, RedTeamResults
-from phantom.target import Target
+from infiltr.redteam import RedTeam, RedTeamResults
+from infiltr.target import Target
 
-_DUMMY_KEY = "sk-test-phantom-dummy-key-for-unit-tests"
+_DUMMY_KEY = "sk-test-infiltr-dummy-key-for-unit-tests"
 
 
 @pytest.mark.integration
 class TestFullPipeline:
-    """Integration tests for the complete Phantom pipeline."""
+    """Integration tests for the complete infiltr pipeline."""
 
     def test_taxonomy_to_mapper_to_report(self) -> None:
         """Test the full path from taxonomy lookup to report generation."""

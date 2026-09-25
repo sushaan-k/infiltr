@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from phantom.atlas.baseline import compare_findings, finding_fingerprint, parse_severity
-from phantom.atlas.report import ATLASReport
-from phantom.models import AttackCategory, Finding, Severity
+import infiltr
+from infiltr.atlas.baseline import compare_findings, finding_fingerprint, parse_severity
+from infiltr.atlas.report import ATLASReport
+from infiltr.models import AttackCategory, Finding, Severity
 
 
 class TestATLASReport:
@@ -36,7 +37,7 @@ class TestATLASReport:
         report.to_json(path)
         data = json.loads(Path(path).read_text())
 
-        assert data["phantom_version"] == "0.1.0"
+        assert data["infiltr_version"] == infiltr.__version__
         assert data["summary"]["total_findings"] == 3
         assert len(data["findings"]) == 3
         assert "generated_at" in data
@@ -51,7 +52,7 @@ class TestATLASReport:
         report.to_html(path)
         html = Path(path).read_text()
 
-        assert "Phantom Security Assessment" in html
+        assert "infiltr Security Assessment" in html
         assert "AML.T0051.000" in html
         assert "Direct Prompt Injection" in html
         assert "CRITICAL" in html
@@ -69,7 +70,7 @@ class TestATLASReport:
         assert data["version"] == "2.1.0"
         assert len(data["runs"]) == 1
         run = data["runs"][0]
-        assert run["tool"]["driver"]["name"] == "phantom"
+        assert run["tool"]["driver"]["name"] == "infiltr"
         assert len(run["results"]) == 3
         assert len(run["tool"]["driver"]["rules"]) > 0
 
@@ -111,7 +112,7 @@ class TestATLASReportFromRedTeamResults:
     """Test creating ATLASReport from a RedTeamResults object."""
 
     def test_from_redteam_results(self, sample_findings):
-        from phantom.redteam import RedTeamResults
+        from infiltr.redteam import RedTeamResults
 
         results = RedTeamResults(
             findings=sample_findings,
@@ -131,7 +132,7 @@ class TestHTMLReportValidation:
 
     @pytest.fixture
     def report_with_all_severities(self):
-        from phantom.models import AttackCategory
+        from infiltr.models import AttackCategory
 
         findings = [
             Finding(
@@ -220,7 +221,7 @@ class TestHTMLReportValidation:
         assert "</html>" in html
         assert "<head>" in html
         assert "<body>" in html
-        assert "Phantom Security Assessment" in html
+        assert "infiltr Security Assessment" in html
         # Check stat cards
         assert "Total Probes" in html
         # Check remediation content
@@ -246,7 +247,7 @@ class TestSARIFReportValidation:
 
     @pytest.fixture
     def multi_finding_report(self):
-        from phantom.models import AttackCategory
+        from infiltr.models import AttackCategory
 
         findings = [
             Finding(
@@ -409,8 +410,8 @@ class TestSARIFReportValidation:
         data = json.loads(Path(path).read_text())
 
         driver = data["runs"][0]["tool"]["driver"]
-        assert driver["name"] == "phantom"
-        assert driver["version"] == "0.1.0"
+        assert driver["name"] == "infiltr"
+        assert driver["version"] == infiltr.__version__
         assert "informationUri" in driver
 
         Path(path).unlink()
@@ -420,21 +421,21 @@ class TestReportGenerationErrors:
     """Test error handling in report generation."""
 
     def test_json_write_error(self, sample_findings):
-        from phantom.exceptions import ReportGenerationError
+        from infiltr.exceptions import ReportGenerationError
 
         report = ATLASReport(sample_findings)
         with pytest.raises(ReportGenerationError, match="JSON"):
             report.to_json("/nonexistent/deep/path/report.json")
 
     def test_html_write_error(self, sample_findings):
-        from phantom.exceptions import ReportGenerationError
+        from infiltr.exceptions import ReportGenerationError
 
         report = ATLASReport(sample_findings)
         with pytest.raises(ReportGenerationError, match="HTML"):
             report.to_html("/nonexistent/deep/path/report.html")
 
     def test_sarif_write_error(self, sample_findings):
-        from phantom.exceptions import ReportGenerationError
+        from infiltr.exceptions import ReportGenerationError
 
         report = ATLASReport(sample_findings)
         with pytest.raises(ReportGenerationError, match="SARIF"):

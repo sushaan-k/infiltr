@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run mypy
-        run: mypy src/phantom/ --ignore-missing-imports
+        run: mypy src/infiltr/ --ignore-missing-imports
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run tests
-        run: pytest tests/ -v --cov=phantom --cov-report=xml -m "not integration"
+        run: pytest tests/ -v --cov=infiltr --cov-report=xml -m "not integration"
       - name: Upload coverage
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

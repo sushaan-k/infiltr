@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from phantom.models import (
+from infiltr.models import (
     AttackAction,
     AttackCategory,
     Conversation,

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.learner.reward import RewardClassifier, RewardSignal
-from phantom.models import OutcomeType
+from infiltr.learner.reward import RewardClassifier, RewardSignal
+from infiltr.models import OutcomeType
 
 
 class TestRewardClassifier:

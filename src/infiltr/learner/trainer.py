@@ -10,10 +10,10 @@ import torch
 import torch.nn as nn
 from pydantic import BaseModel, Field
 
-from phantom.learner.policy import PolicyNetwork, PolicyState
-from phantom.logging import get_logger
+from infiltr.learner.policy import PolicyNetwork, PolicyState
+from infiltr.logging import get_logger
 
-logger = get_logger("phantom.learner.trainer")
+logger = get_logger("infiltr.learner.trainer")
 
 
 class TrainerConfig(BaseModel):

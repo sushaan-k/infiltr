@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.exceptions import TaxonomyError
-from phantom.models import Severity
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.exceptions import TaxonomyError
+from infiltr.models import Severity
 
 
 class TestATLASTaxonomy:

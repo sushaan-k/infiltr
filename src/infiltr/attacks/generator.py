@@ -6,13 +6,13 @@ from typing import Any
 
 import openai
 
-from phantom.attacks.mutations import MutationEngine
-from phantom.attacks.strategies import AttackStrategy, create_strategy
-from phantom.exceptions import AttackGenerationError
-from phantom.logging import get_logger
-from phantom.models import AttackAction, AttackCategory, Conversation
+from infiltr.attacks.mutations import MutationEngine
+from infiltr.attacks.strategies import AttackStrategy, create_strategy
+from infiltr.exceptions import AttackGenerationError
+from infiltr.logging import get_logger
+from infiltr.models import AttackAction, AttackCategory, Conversation
 
-logger = get_logger("phantom.attacks.generator")
+logger = get_logger("infiltr.attacks.generator")
 
 _ATTACK_SYSTEM_PROMPT = """\
 You are a red-team attack prompt generator for LLM security testing.

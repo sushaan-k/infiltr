@@ -6,19 +6,19 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from phantom.exceptions import ConfigurationError
-from phantom.models import (
+from infiltr.exceptions import ConfigurationError
+from infiltr.models import (
     AttackAction,
     AttackCategory,
     OutcomeType,
     ProbeResult,
     Severity,
 )
-from phantom.redteam import RedTeam, RedTeamConfig, RedTeamResults
-from phantom.target import Target
+from infiltr.redteam import RedTeam, RedTeamConfig, RedTeamResults
+from infiltr.target import Target
 
 # Dummy key so the OpenAI client doesn't raise on construction
-_DUMMY_KEY = "sk-test-phantom-dummy-key-for-unit-tests"
+_DUMMY_KEY = "sk-test-infiltr-dummy-key-for-unit-tests"
 
 
 class TestRedTeamConfig:
@@ -69,7 +69,7 @@ class TestRedTeamResults:
     def test_budget_summary(self) -> None:
         results = RedTeamResults(
             probes=[
-                pytest.importorskip("phantom.models").ProbeResult(
+                pytest.importorskip("infiltr.models").ProbeResult(
                     attack_prompt="a",
                     response="r",
                     outcome=OutcomeType.CLEAN_REFUSAL,
@@ -77,7 +77,7 @@ class TestRedTeamResults:
                     category=AttackCategory.PROMPT_INJECTION,
                     latency_ms=10.0,
                 ),
-                pytest.importorskip("phantom.models").ProbeResult(
+                pytest.importorskip("infiltr.models").ProbeResult(
                     attack_prompt="b",
                     response="r",
                     outcome=OutcomeType.FULL_BYPASS,
@@ -390,7 +390,7 @@ class TestRedTeam:
 
         First probe fails, second succeeds, so loop makes progress.
         """
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         target = Target(endpoint="https://api.example.com/chat")
 
@@ -551,7 +551,7 @@ class TestRedTeam:
         First call is multi_turn (probe fails), then switch to direct
         strategy so the loop can make progress.
         """
-        from phantom.exceptions import TargetConnectionError
+        from infiltr.exceptions import TargetConnectionError
 
         target = Target(endpoint="https://api.example.com/chat")
 
@@ -633,7 +633,7 @@ class TestRedTeamUpdateState:
             attack_api_key=_DUMMY_KEY,
         )
         # Manually add a probe
-        from phantom.models import ProbeResult
+        from infiltr.models import ProbeResult
 
         rt._probes.append(
             ProbeResult(
@@ -656,7 +656,7 @@ class TestRedTeamUpdateState:
             attack_api_key=_DUMMY_KEY,
         )
         rt._state.consecutive_refusals = 5
-        from phantom.models import ProbeResult
+        from infiltr.models import ProbeResult
 
         rt._probes.append(
             ProbeResult(
@@ -697,7 +697,7 @@ class TestRedTeamResultsEdgeCases:
         assert results.count_by_severity(Severity.LOW) == 0
 
     def test_atlas_coverage_uses_probe_techniques(self) -> None:
-        from phantom.models import ProbeResult
+        from infiltr.models import ProbeResult
 
         results = RedTeamResults(
             probes=[

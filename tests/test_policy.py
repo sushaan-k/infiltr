@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from phantom.learner.policy import (
+from infiltr.learner.policy import (
     MUTATION_DIM,
     MUTATION_OPERATORS,
     STATE_DIM,
@@ -17,7 +17,7 @@ from phantom.learner.policy import (
     PolicyNetwork,
     PolicyState,
 )
-from phantom.models import AttackCategory
+from infiltr.models import AttackCategory
 
 
 class TestPolicyState:

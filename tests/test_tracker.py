@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.learner.tracker import SuccessTracker
-from phantom.models import AttackCategory, OutcomeType, ProbeResult
+from infiltr.learner.tracker import SuccessTracker
+from infiltr.models import AttackCategory, OutcomeType, ProbeResult
 
 
 def _make_probe(

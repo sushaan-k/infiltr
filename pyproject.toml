@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "phantom-redteam"
-version = "0.1.0"
+name = "infiltr"
+version = "0.2.0"
 description = "RL-based adversarial red-team agent for LLM systems"
 readme = "README.md"
 license = "MIT"
@@ -29,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Security",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
@@ -58,16 +59,18 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sushaan-k/phantom"
-Documentation = "https://github.com/sushaan-k/phantom#readme"
-Repository = "https://github.com/sushaan-k/phantom"
-Issues = "https://github.com/sushaan-k/phantom/issues"
+Homepage = "https://github.com/sushaan-k/infiltr"
+Documentation = "https://github.com/sushaan-k/infiltr#readme"
+Repository = "https://github.com/sushaan-k/infiltr"
+Issues = "https://github.com/sushaan-k/infiltr/issues"
 
 [project.scripts]
-phantom = "phantom.cli:app"
+infiltr = "infiltr.cli:app"
+# Legacy alias: the pre-0.2 command name.
+phantom = "infiltr.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/phantom"]
+packages = ["src/infiltr"]
 
 [tool.ruff]
 target-version = "py311"
@@ -95,12 +98,12 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/phantom/atlas/report.py" = ["E501"]
-"src/phantom/attacks/strategies.py" = ["E501"]
+"src/infiltr/atlas/report.py" = ["E501"]
+"src/infiltr/attacks/strategies.py" = ["E501"]
 "tests/*" = ["ANN"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["phantom"]
+known-first-party = ["infiltr"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -6,7 +6,7 @@ import base64
 
 import pytest
 
-from phantom.attacks.mutations import MutationEngine, MutationOperator
+from infiltr.attacks.mutations import MutationEngine, MutationOperator
 
 
 class TestMutationEngine:

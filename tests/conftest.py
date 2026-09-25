@@ -1,13 +1,13 @@
-"""Shared test fixtures for Phantom."""
+"""Shared test fixtures for infiltr."""
 
 from __future__ import annotations
 
 import pytest
 
-from phantom.atlas.taxonomy import ATLASTaxonomy
-from phantom.learner.policy import PolicyNetwork, PolicyState
-from phantom.learner.reward import RewardClassifier
-from phantom.models import (
+from infiltr.atlas.taxonomy import ATLASTaxonomy
+from infiltr.learner.policy import PolicyNetwork, PolicyState
+from infiltr.learner.reward import RewardClassifier
+from infiltr.models import (
     AttackAction,
     AttackCategory,
     Conversation,
@@ -16,7 +16,7 @@ from phantom.models import (
     ProbeResult,
     Severity,
 )
-from phantom.target import Target, TargetConfig
+from infiltr.target import Target, TargetConfig
 
 
 @pytest.fixture

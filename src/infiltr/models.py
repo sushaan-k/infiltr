@@ -1,4 +1,4 @@
-"""Core data models shared across Phantom modules."""
+"""Core data models shared across infiltr modules."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class Severity(str, enum.Enum):
 
 
 class AttackCategory(str, enum.Enum):
-    """Categories of attacks that Phantom can execute."""
+    """Categories of attacks that infiltr can execute."""
 
     PROMPT_INJECTION = "prompt_injection"
     GOAL_HIJACKING = "goal_hijacking"

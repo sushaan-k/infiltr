@@ -9,7 +9,7 @@ from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from phantom.models import Finding, Severity
+from infiltr.models import Finding, Severity
 
 _SEVERITY_ORDER: dict[Severity, int] = {
     Severity.INFO: 0,

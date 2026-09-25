@@ -8,11 +8,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from phantom.exceptions import TaxonomyError
-from phantom.logging import get_logger
-from phantom.models import Severity
+from infiltr.exceptions import TaxonomyError
+from infiltr.logging import get_logger
+from infiltr.models import Severity
 
-logger = get_logger("phantom.atlas.taxonomy")
+logger = get_logger("infiltr.atlas.taxonomy")
 
 _DEFAULT_DATA_PATH = Path(__file__).parent / "data" / "techniques.json"
 

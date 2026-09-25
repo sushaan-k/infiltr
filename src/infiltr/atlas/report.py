@@ -12,19 +12,19 @@ from typing import TYPE_CHECKING, Any
 
 from jinja2 import BaseLoader, Environment
 
-from phantom.atlas.baseline import (
+from infiltr.atlas.baseline import (
     BaselineComparison,
     compare_findings,
     finding_fingerprint,
 )
-from phantom.exceptions import ReportGenerationError
-from phantom.logging import get_logger
-from phantom.models import Finding, Severity
+from infiltr.exceptions import ReportGenerationError
+from infiltr.logging import get_logger
+from infiltr.models import Finding, Severity
 
 if TYPE_CHECKING:
-    from phantom.redteam import RedTeamResults
+    from infiltr.redteam import RedTeamResults
 
-logger = get_logger("phantom.atlas.report")
+logger = get_logger("infiltr.atlas.report")
 
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -32,7 +32,7 @@ _HTML_TEMPLATE = """\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phantom Security Assessment</title>
+  <title>infiltr Security Assessment</title>
   <style>
     :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff;
             --critical: #f85149; --high: #d29922; --medium: #e3b341;
@@ -76,7 +76,7 @@ _HTML_TEMPLATE = """\
 </head>
 <body>
   <div class="container">
-    <h1>Phantom Security Assessment</h1>
+    <h1>infiltr Security Assessment</h1>
     <p class="subtitle">Generated {{ timestamp }} | {{ total_findings }} findings</p>
     <div class="summary">
       <div class="stat-card">
@@ -133,7 +133,7 @@ _HTML_TEMPLATE = """\
     </div>
     {% endfor %}
     <div class="footer">
-      Phantom v0.1.0 &mdash; RL-based adversarial red-team agent for LLM systems
+      infiltr v{{ version }} &mdash; RL-based adversarial red-team agent for LLM systems
     </div>
   </div>
 </body>
@@ -252,7 +252,7 @@ class ATLASReport:
                 }
             )
             data = {
-                "phantom_version": "0.1.0",
+                "infiltr_version": _tool_version(),
                 "generated_at": datetime.now(UTC).isoformat(),
                 "summary": summary,
                 "findings": [_finding_to_dict(f) for f in self._findings],
@@ -290,6 +290,7 @@ class ATLASReport:
                 medium_count=self.count_by_severity(Severity.MEDIUM),
                 low_count=self.count_by_severity(Severity.LOW),
                 findings=self._findings,
+                version=_tool_version(),
             )
 
             Path(path).write_text(html, encoding="utf-8")
@@ -376,10 +377,10 @@ class ATLASReport:
                     {
                         "tool": {
                             "driver": {
-                                "name": "phantom",
-                                "version": "0.1.0",
+                                "name": "infiltr",
+                                "version": _tool_version(),
                                 "informationUri": (
-                                    "https://github.com/sushaankandukoori/phantom"
+                                    "https://github.com/sushaan-k/infiltr"
                                 ),
                                 "rules": rules,
                             }
@@ -422,8 +423,8 @@ class ATLASReport:
             logger.info("gh_cli_not_found", action="skip_upload")
             return False
 
-        tmpdir = tempfile.mkdtemp(prefix="phantom_sarif_")
-        sarif_path = Path(tmpdir) / "phantom-results.sarif"
+        tmpdir = tempfile.mkdtemp(prefix="infiltr_sarif_")
+        sarif_path = Path(tmpdir) / "infiltr-results.sarif"
         try:
             self.to_sarif(sarif_path)
         except ReportGenerationError:
@@ -492,6 +493,13 @@ class ATLASReport:
             "summary": summary,
             "findings": [_finding_to_dict(f) for f in self._findings],
         }
+
+
+def _tool_version() -> str:
+    """Return the installed infiltr version (imported lazily to avoid a cycle)."""
+    from infiltr import __version__
+
+    return __version__
 
 
 def _finding_from_mapping(data: object) -> Finding:

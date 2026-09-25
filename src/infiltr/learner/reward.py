@@ -7,10 +7,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from phantom.logging import get_logger
-from phantom.models import OutcomeType
+from infiltr.logging import get_logger
+from infiltr.models import OutcomeType
 
-logger = get_logger("phantom.learner.reward")
+logger = get_logger("infiltr.learner.reward")
 
 _REFUSAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"I (?:can't|cannot|won't|will not|am not able to)", re.I),

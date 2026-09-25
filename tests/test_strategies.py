@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from phantom.attacks.strategies import (
+from infiltr.attacks.strategies import (
     AttackStrategy,
     DirectStrategy,
     IndirectStrategy,
     MultiTurnStrategy,
     create_strategy,
 )
-from phantom.models import AttackCategory, Conversation
+from infiltr.models import AttackCategory, Conversation
 
 
 class TestDirectStrategy:

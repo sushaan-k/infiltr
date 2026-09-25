@@ -8,11 +8,11 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
-from phantom.exceptions import TargetConnectionError, TargetResponseError
-from phantom.logging import get_logger
-from phantom.models import Conversation
+from infiltr.exceptions import TargetConnectionError, TargetResponseError
+from infiltr.logging import get_logger
+from infiltr.models import Conversation
 
-logger = get_logger("phantom.target")
+logger = get_logger("infiltr.target")
 
 
 class ProbeTimeoutResult(BaseModel):

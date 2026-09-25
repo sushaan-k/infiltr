@@ -6,10 +6,10 @@ import abc
 import random
 from typing import Any
 
-from phantom.logging import get_logger
-from phantom.models import AttackCategory, Conversation
+from infiltr.logging import get_logger
+from infiltr.models import AttackCategory, Conversation
 
-logger = get_logger("phantom.attacks.strategies")
+logger = get_logger("infiltr.attacks.strategies")
 
 
 _DIRECT_SEED_PROMPTS: dict[AttackCategory, list[str]] = {

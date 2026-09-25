@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import openai
 import pytest
 
-from phantom.attacks.generator import AttackGenerator
-from phantom.attacks.mutations import MutationEngine
-from phantom.exceptions import AttackGenerationError
-from phantom.models import AttackAction, AttackCategory, Conversation
+from infiltr.attacks.generator import AttackGenerator
+from infiltr.attacks.mutations import MutationEngine
+from infiltr.exceptions import AttackGenerationError
+from infiltr.models import AttackAction, AttackCategory, Conversation
 
-_DUMMY_KEY = "sk-test-phantom-dummy-key-for-unit-tests"
+_DUMMY_KEY = "sk-test-infiltr-dummy-key-for-unit-tests"
 
 
 class TestAttackGeneratorInit:
