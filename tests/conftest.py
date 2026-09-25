@@ -19,6 +19,12 @@ from infiltr.models import (
 from infiltr.target import Target, TargetConfig
 
 
+@pytest.fixture(autouse=True)
+def _no_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep retry tests fast by disabling the target's backoff delay."""
+    monkeypatch.setattr("infiltr.target._RETRY_BACKOFF_BASE_S", 0.0)
+
+
 @pytest.fixture
 def taxonomy() -> ATLASTaxonomy:
     """Provide a loaded ATLAS taxonomy."""

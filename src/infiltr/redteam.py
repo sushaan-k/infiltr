@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+import torch
 from pydantic import BaseModel, Field
 
 from infiltr.atlas.mapper import ATLASMapper
@@ -215,6 +216,7 @@ class RedTeam:
         config: RedTeamConfig | None = None,
         attack_api_key: str | None = None,
         attack_api_base: str | None = None,
+        seed: int | None = None,
     ) -> None:
         if config is not None:
             self._config = config
@@ -233,15 +235,22 @@ class RedTeam:
                 multi_turn=multi_turn,
                 max_turns_per_conversation=max_turns_per_conversation,
                 learning_rate=learning_rate,
+                seed=seed,
             )
 
         self._target = target
         self._validate_categories()
 
-        self._policy = PolicyNetwork()
+        if self._config.seed is not None:
+            torch.manual_seed(self._config.seed)
+
+        self._policy = PolicyNetwork(rng_seed=self._config.seed)
         self._trainer = RLTrainer(
             self._policy,
-            TrainerConfig(learning_rate=self._config.learning_rate),
+            TrainerConfig(
+                learning_rate=self._config.learning_rate,
+                seed=self._config.seed,
+            ),
         )
         self._reward_classifier = RewardClassifier()
         self._generator = AttackGenerator(

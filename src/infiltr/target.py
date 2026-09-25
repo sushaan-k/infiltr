@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -13,6 +14,25 @@ from infiltr.logging import get_logger
 from infiltr.models import Conversation
 
 logger = get_logger("infiltr.target")
+
+# Base delay for exponential backoff between retries (seconds).
+_RETRY_BACKOFF_BASE_S: float = 0.5
+_RETRY_BACKOFF_MAX_S: float = 30.0
+
+
+def _retry_delay(attempt: int, retry_after: str | None = None) -> float:
+    """Return the backoff delay before retry ``attempt`` (0-based).
+
+    Honors a numeric ``Retry-After`` header when present.
+    """
+    if retry_after is not None:
+        try:
+            seconds = max(float(retry_after), 0.0)
+        except ValueError:
+            seconds = _RETRY_BACKOFF_BASE_S * float(2**attempt)
+    else:
+        seconds = _RETRY_BACKOFF_BASE_S * float(2**attempt)
+    return min(seconds, _RETRY_BACKOFF_MAX_S)
 
 
 class ProbeTimeoutResult(BaseModel):
@@ -255,18 +275,23 @@ class Target:
         body = self._build_request_body(prompt, conversation)
 
         last_error: Exception | None = None
+        retry_after: str | None = None
         for attempt in range(self._config.max_retries + 1):
+            if attempt > 0:
+                await asyncio.sleep(_retry_delay(attempt - 1, retry_after))
+                retry_after = None
             try:
                 start_time = time.monotonic()
                 response = await client.post(self._config.endpoint, json=body)
                 latency_ms = (time.monotonic() - start_time) * 1000
 
-                if response.status_code >= 500:
+                if response.status_code == 429 or response.status_code >= 500:
                     last_error = TargetResponseError(
                         response.status_code, response.text
                     )
+                    retry_after = response.headers.get("Retry-After")
                     logger.warning(
-                        "target_server_error",
+                        "target_retryable_status",
                         status=response.status_code,
                         attempt=attempt + 1,
                     )
@@ -275,7 +300,13 @@ class Target:
                 if response.status_code >= 400:
                     raise TargetResponseError(response.status_code, response.text)
 
-                data = response.json()
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise TargetResponseError(
+                        response.status_code,
+                        f"Response is not valid JSON: {response.text}",
+                    ) from exc
                 text = self._extract_response(data)
 
                 self._probe_count += 1
@@ -363,7 +394,12 @@ class Target:
             A tuple of (response_text, latency_ms).
         """
         conversation.add_turn("attacker", prompt)
-        response_text, latency_ms = await self.send_probe(prompt, conversation)
+        try:
+            response_text, latency_ms = await self.send_probe(prompt, conversation)
+        except BaseException:
+            # Do not leave an unanswered attacker turn in the history.
+            conversation.turns.pop()
+            raise
         conversation.add_turn("target", response_text)
         return response_text, latency_ms
 

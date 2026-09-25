@@ -22,6 +22,9 @@ class TrainerConfig(BaseModel):
     learning_rate: float = Field(
         default=3e-4, gt=0.0, description="Learning rate for the optimizer"
     )
+    seed: int | None = Field(
+        default=None, description="Random seed for reproducible minibatching"
+    )
     gamma: float = Field(
         default=0.99,
         ge=0.0,
@@ -114,6 +117,7 @@ class RLTrainer:
             self._policy.parameters(),
             lr=self._config.learning_rate,
         )
+        self._rng = np.random.default_rng(self._config.seed)
         self._buffer: list[Experience] = []
         self._total_updates = 0
         self._episode_rewards: list[float] = []
@@ -185,7 +189,7 @@ class RLTrainer:
         num_updates = 0
 
         for _epoch in range(self._config.update_epochs):
-            indices = np.random.default_rng().permutation(len(self._buffer))
+            indices = self._rng.permutation(len(self._buffer))
 
             for start in range(0, len(indices), self._config.batch_size):
                 end = start + self._config.batch_size

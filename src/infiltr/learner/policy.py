@@ -119,10 +119,14 @@ class PolicyNetwork(nn.Module):
         self,
         state_dim: int = STATE_DIM,
         hidden_dim: int = 128,
+        rng_seed: int | None = None,
     ) -> None:
         super().__init__()
         self._state_dim = state_dim
         self._hidden_dim = hidden_dim
+        # A persistent RNG so sampling is reproducible under a seed and we
+        # avoid re-seeding a fresh Generator from OS entropy on every call.
+        self._rng = np.random.default_rng(rng_seed)
 
         self.shared = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
@@ -209,15 +213,11 @@ class PolicyNetwork(nn.Module):
         else:
             mut_probs_safe = np.maximum(mut_probs_np, 1e-8)
             mut_probs_safe /= mut_probs_safe.sum()
-            mut_idx = int(
-                np.random.default_rng().choice(MUTATION_DIM, p=mut_probs_safe)
-            )
+            mut_idx = int(self._rng.choice(MUTATION_DIM, p=mut_probs_safe))
 
             strat_probs_safe = np.maximum(strat_probs_np, 1e-8)
             strat_probs_safe /= strat_probs_safe.sum()
-            strat_idx = int(
-                np.random.default_rng().choice(STRATEGY_DIM, p=strat_probs_safe)
-            )
+            strat_idx = int(self._rng.choice(STRATEGY_DIM, p=strat_probs_safe))
 
         action = AttackAction(
             mutation_operator=MUTATION_OPERATORS[mut_idx],

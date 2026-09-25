@@ -565,3 +565,60 @@ class TestConnectionPooling:
         assert pool._max_connections == 20
         assert pool._max_keepalive_connections == 10
         await target.close()
+
+
+class TestTargetRetryAndErrors:
+    """Regression tests for retry/backoff and response error handling."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_rate_limited_response_is_retried(self) -> None:
+        route = respx.post("https://api.example.com/chat")
+        route.side_effect = [
+            httpx.Response(429, text="slow down", headers={"Retry-After": "0"}),
+            httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]}),
+        ]
+        target = Target(endpoint="https://api.example.com/chat", max_retries=2)
+        response, _ = await target.send_probe("hi")
+        assert response == "ok"
+        assert route.call_count == 2
+        await target.close()
+
+    def test_retry_delay_backoff_and_retry_after(self, monkeypatch) -> None:
+        from infiltr import target as target_mod
+
+        monkeypatch.setattr(target_mod, "_RETRY_BACKOFF_BASE_S", 0.5)
+        assert target_mod._retry_delay(0) == 0.5
+        assert target_mod._retry_delay(2) == 2.0
+        assert target_mod._retry_delay(20) == target_mod._RETRY_BACKOFF_MAX_S
+        assert target_mod._retry_delay(0, "3") == 3.0
+        assert target_mod._retry_delay(1, "not-a-number") == 1.0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_non_json_response_raises_target_error(self) -> None:
+        from infiltr.exceptions import TargetResponseError
+
+        respx.post("https://api.example.com/chat").mock(
+            return_value=httpx.Response(200, text="<html>gateway</html>")
+        )
+        target = Target(endpoint="https://api.example.com/chat")
+        with pytest.raises(TargetResponseError, match="not valid JSON"):
+            await target.send_probe("hi")
+        await target.close()
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_failed_conversation_turn_is_rolled_back(self) -> None:
+        from infiltr.exceptions import TargetResponseError
+        from infiltr.models import Conversation
+
+        respx.post("https://api.example.com/chat").mock(
+            return_value=httpx.Response(400, text="bad request")
+        )
+        target = Target(endpoint="https://api.example.com/chat")
+        conversation = Conversation()
+        with pytest.raises(TargetResponseError):
+            await target.send_conversation_turn("hello", conversation)
+        assert conversation.turn_count == 0
+        await target.close()

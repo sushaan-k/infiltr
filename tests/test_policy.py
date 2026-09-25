@@ -130,3 +130,27 @@ class TestPolicyNetwork:
         assert action_before.strategy == action_after.strategy
 
         Path(path).unlink()
+
+
+class TestPolicyReproducibility:
+    """The seed makes stochastic sampling reproducible."""
+
+    def test_seeded_sampling_is_deterministic(self) -> None:
+        import torch
+
+        torch.manual_seed(0)
+        net_a = PolicyNetwork(rng_seed=123)
+        torch.manual_seed(0)
+        net_b = PolicyNetwork(rng_seed=123)
+
+        state = PolicyState(refusal_rate=0.4, bypass_rate=0.1)
+        picks_a = [net_a.select_action(state)[0].mutation_operator for _ in range(20)]
+        picks_b = [net_b.select_action(state)[0].mutation_operator for _ in range(20)]
+        assert picks_a == picks_b
+
+    def test_unseeded_sampling_varies(self) -> None:
+        net = PolicyNetwork()
+        state = PolicyState()
+        picks = {net.select_action(state)[0].mutation_operator for _ in range(50)}
+        # With a persistent RNG and 8 operators, sampling should still explore.
+        assert len(picks) > 1
