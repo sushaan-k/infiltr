@@ -116,6 +116,15 @@ def main() -> None:
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
+    if "meta" in previous:
+        # Keep the original run's metadata; note which sections were re-run.
+        results["meta"] = {
+            **previous["meta"],
+            "rerun": {
+                **previous["meta"].get("rerun", {}),
+                **{name: results["meta"]["timestamp"] for name in selected},
+            },
+        }
     for name in selected:
         print(f"[{args.label}] running {name} ...", file=sys.stderr, flush=True)
         start = time.perf_counter()
