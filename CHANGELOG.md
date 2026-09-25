@@ -68,6 +68,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `get_display_name()` and `get_remediation()`. Category mappings are read from
   `techniques.json` instead of being duplicated in the mapper.
 - Probes record their attack strategy in `ProbeResult.metadata["strategy"]`.
+- The HTML report has an interactive MITRE ATLAS heatmap: bundled techniques
+  laid out by tactic, colored by the highest-severity finding, and clickable to
+  filter the findings list. `ATLASReport` accepts an optional `taxonomy`.
+- JSON reports include `atlas_version`; SARIF rules carry a `helpUri` to the
+  technique's atlas.mitre.org page.
 
 ### Fixed
 

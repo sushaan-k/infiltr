@@ -17,6 +17,7 @@ from infiltr.atlas.baseline import (
     compare_findings,
     finding_fingerprint,
 )
+from infiltr.atlas.taxonomy import ATLASTaxonomy
 from infiltr.exceptions import ReportGenerationError
 from infiltr.logging import get_logger
 from infiltr.models import Finding, Severity
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from infiltr.redteam import RedTeamResults
 
 logger = get_logger("infiltr.atlas.report")
+
+_SEVERITY_RANK = {severity: idx for idx, severity in enumerate(Severity)}
 
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -70,6 +73,39 @@ _HTML_TEMPLATE = """\
                     margin-bottom: 0.25rem; }
     pre { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
           padding: 1rem; overflow-x: auto; font-size: 0.85rem; }
+    h2 { font-size: 1.25rem; margin: 2rem 0 0.25rem; }
+    .section-note { color: #8b949e; font-size: 0.85rem; margin-bottom: 1rem; }
+    .matrix { display: grid; grid-auto-flow: column;
+              grid-auto-columns: minmax(150px, 1fr); gap: 0.5rem;
+              overflow-x: auto; padding-bottom: 0.5rem; }
+    .matrix-col { display: flex; flex-direction: column; gap: 0.35rem; }
+    .matrix-tactic { font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+                     color: #8b949e; padding: 0.25rem 0; min-height: 2.5rem; }
+    .matrix-cell { font: inherit; font-size: 0.78rem; text-align: left;
+                   line-height: 1.3; padding: 0.45rem 0.5rem; border-radius: 6px;
+                   border: 1px solid var(--border); background: var(--card-bg);
+                   color: #8b949e; }
+    .matrix-cell .cell-id { display: block; font-size: 0.7rem; opacity: 0.8; }
+    .matrix-cell .cell-count { float: right; font-weight: 700; }
+    button.matrix-cell { cursor: pointer; color: #0d1117; border-color: transparent; }
+    button.matrix-cell:hover, button.matrix-cell:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 1px; }
+    button.matrix-cell[aria-pressed="true"] { outline: 2px solid var(--fg); }
+    .heat-critical { background: var(--critical); }
+    .heat-high { background: var(--high); }
+    .heat-medium { background: var(--medium); }
+    .heat-low { background: var(--low); }
+    .heat-info { background: var(--accent); }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem;
+              color: #8b949e; margin: 0.5rem 0 1rem; }
+    .legend i { display: inline-block; width: 0.8rem; height: 0.8rem;
+                border-radius: 3px; margin-right: 0.3rem; vertical-align: -1px; }
+    .filter-bar { display: flex; gap: 1rem; align-items: center;
+                  margin-bottom: 1rem; color: #8b949e; }
+    .filter-bar button { font: inherit; background: none; color: var(--accent);
+                         border: 1px solid var(--border); border-radius: 6px;
+                         padding: 0.2rem 0.6rem; cursor: pointer; }
+    [hidden] { display: none !important; }
     .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid
               var(--border); color: #8b949e; font-size: 0.8rem; text-align: center; }
   </style>
@@ -100,8 +136,51 @@ _HTML_TEMPLATE = """\
         <div class="stat-label">Total Probes</div>
       </div>
     </div>
-    {% for finding in findings %}
-    <div class="finding">
+    <h2>MITRE ATLAS Coverage</h2>
+    <p class="section-note">
+      Techniques in the bundled MITRE ATLAS {{ atlas_version }} taxonomy, grouped by
+      tactic and colored by the highest-severity finding. Select a highlighted
+      technique to show only its findings.
+      {% if unmapped_count %}{{ unmapped_count }} finding(s) use technique IDs outside
+      the bundled taxonomy and are listed below only.{% endif %}
+    </p>
+    <div class="legend">
+      <span><i class="heat-critical"></i>Critical</span>
+      <span><i class="heat-high"></i>High</span>
+      <span><i class="heat-medium"></i>Medium</span>
+      <span><i class="heat-low"></i>Low</span>
+      <span><i class="heat-info"></i>Info</span>
+      <span><i style="border: 1px solid var(--border);"></i>No finding</span>
+    </div>
+    <div class="matrix" role="group" aria-label="ATLAS technique matrix">
+      {% for column in matrix %}
+      <div class="matrix-col">
+        <div class="matrix-tactic" title="{{ column.tactic_id }}">{{ column.tactic }}</div>
+        {% for cell in column.cells %}
+        {% if cell.count %}
+        <button type="button" class="matrix-cell heat-{{ cell.severity }}"
+                data-technique="{{ cell.id }}" aria-pressed="false"
+                title="{{ cell.id }} {{ cell.name }}: {{ cell.count }} finding(s), highest {{ cell.severity | upper }} ({{ cell.ids | join(', ') }})">
+          <span class="cell-count">{{ cell.count }}</span>
+          <span class="cell-id">{{ cell.id }}</span>{{ cell.name }}
+        </button>
+        {% else %}
+        <div class="matrix-cell" title="{{ cell.id }} {{ cell.name }}: no findings">
+          <span class="cell-id">{{ cell.id }}</span>{{ cell.name }}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <h2 id="findings">Findings</h2>
+    <div class="filter-bar" id="matrix-filter" hidden>
+      <span>Showing findings for <strong id="matrix-filter-id"></strong></span>
+      <button type="button" id="matrix-reset">Show all findings</button>
+    </div>
+    {% for row in finding_rows %}
+    {% set finding = row.finding %}
+    <div class="finding" data-technique="{{ row.technique }}">
       <div class="finding-header">
         <div class="finding-title">{{ finding.technique_id }} &mdash; {{ finding.technique_name }}</div>
         <span class="badge badge-{{ finding.severity.value | lower }}">{{ finding.severity.value }}</span>
@@ -134,8 +213,39 @@ _HTML_TEMPLATE = """\
     {% endfor %}
     <div class="footer">
       infiltr v{{ version }} &mdash; RL-based adversarial red-team agent for LLM systems
+      &mdash; mapped to MITRE ATLAS {{ atlas_version }}
     </div>
   </div>
+  <script>
+  (function () {
+    var cells = document.querySelectorAll("button.matrix-cell");
+    var findings = document.querySelectorAll(".finding");
+    var bar = document.getElementById("matrix-filter");
+    var label = document.getElementById("matrix-filter-id");
+    var active = null;
+    function show(id) {
+      active = id;
+      findings.forEach(function (f) {
+        f.hidden = id !== null && f.getAttribute("data-technique") !== id;
+      });
+      cells.forEach(function (c) {
+        c.setAttribute("aria-pressed", String(c.getAttribute("data-technique") === id));
+      });
+      bar.hidden = id === null;
+      label.textContent = id || "";
+    }
+    cells.forEach(function (c) {
+      c.addEventListener("click", function () {
+        var id = c.getAttribute("data-technique");
+        show(active === id ? null : id);
+        if (active) { document.getElementById("findings").scrollIntoView(); }
+      });
+    });
+    document.getElementById("matrix-reset").addEventListener("click", function () {
+      show(null);
+    });
+  })();
+  </script>
 </body>
 </html>
 """
@@ -149,12 +259,16 @@ class ATLASReport:
 
     Args:
         results: A RedTeamResults instance, or a list of Finding objects.
+        taxonomy: ATLAS taxonomy used for the HTML coverage matrix and the
+            ATLAS version stamp. Defaults to the bundled taxonomy.
     """
 
     def __init__(
         self,
         results: RedTeamResults | list[Finding] | dict[str, Any],
+        taxonomy: ATLASTaxonomy | None = None,
     ) -> None:
+        self._taxonomy = taxonomy
         if isinstance(results, list):
             self._findings = results
             self._summary: dict[str, Any] = {}
@@ -191,6 +305,13 @@ class ATLASReport:
             self._novel_count = results.novel_attack_count
 
     @property
+    def taxonomy(self) -> ATLASTaxonomy:
+        """Return the ATLAS taxonomy, loading the bundled one on first use."""
+        if self._taxonomy is None:
+            self._taxonomy = ATLASTaxonomy()
+        return self._taxonomy
+
+    @property
     def findings(self) -> list[Finding]:
         """Return the list of findings."""
         return self._findings
@@ -209,7 +330,7 @@ class ATLASReport:
         summary_updates: dict[str, Any] | None = None,
     ) -> ATLASReport:
         """Return a report carrying the same summary but a different finding list."""
-        report = ATLASReport(findings)
+        report = ATLASReport(findings, taxonomy=self._taxonomy)
         report._summary = dict(self._summary)
         if summary_updates:
             report._summary.update(summary_updates)
@@ -253,6 +374,7 @@ class ATLASReport:
             )
             data = {
                 "infiltr_version": _tool_version(),
+                "atlas_version": self.taxonomy.version,
                 "generated_at": datetime.now(UTC).isoformat(),
                 "summary": summary,
                 "findings": [_finding_to_dict(f) for f in self._findings],
@@ -280,8 +402,15 @@ class ATLASReport:
                 autoescape=True,
             )
             template = env.from_string(_HTML_TEMPLATE)
+            matrix, finding_rows, unmapped_count = _coverage_matrix(
+                self._findings, self.taxonomy
+            )
 
             html = template.render(
+                matrix=matrix,
+                finding_rows=finding_rows,
+                unmapped_count=unmapped_count,
+                atlas_version=self.taxonomy.version,
                 timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
                 total_findings=len(self._findings),
                 total_probes=self._total_probes,
@@ -289,7 +418,6 @@ class ATLASReport:
                 high_count=self.count_by_severity(Severity.HIGH),
                 medium_count=self.count_by_severity(Severity.MEDIUM),
                 low_count=self.count_by_severity(Severity.LOW),
-                findings=self._findings,
                 version=_tool_version(),
             )
 
@@ -332,6 +460,10 @@ class ATLASReport:
                             "name": finding.technique_name,
                             "shortDescription": {"text": finding.technique_name},
                             "fullDescription": {"text": finding.remediation},
+                            "helpUri": (
+                                "https://atlas.mitre.org/techniques/"
+                                f"{finding.technique_id}"
+                            ),
                             "defaultConfiguration": {
                                 "level": severity_to_sarif[finding.severity]
                             },
@@ -493,6 +625,58 @@ class ATLASReport:
             "summary": summary,
             "findings": [_finding_to_dict(f) for f in self._findings],
         }
+
+
+def _coverage_matrix(
+    findings: list[Finding],
+    taxonomy: ATLASTaxonomy,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
+    """Group findings onto the ATLAS tactic/technique matrix.
+
+    Each finding is attributed to its top-level technique (a sub-technique
+    finding counts toward its parent). A technique appears under every tactic
+    it belongs to, as on the ATLAS matrix.
+
+    Returns:
+        The matrix columns, per-finding rows carrying the attributed
+        technique ID, and the number of findings outside the taxonomy.
+    """
+    by_technique: dict[str, list[Finding]] = {}
+    rows: list[dict[str, Any]] = []
+    unmapped = 0
+    for finding in findings:
+        technique = taxonomy.get_technique(finding.technique_id)
+        if technique is None:
+            parent_id = ".".join(finding.technique_id.split(".")[:2])
+            technique = taxonomy.get_technique(parent_id)
+        if technique is None:
+            unmapped += 1
+            rows.append({"finding": finding, "technique": finding.technique_id})
+            continue
+        by_technique.setdefault(technique.id, []).append(finding)
+        rows.append({"finding": finding, "technique": technique.id})
+
+    columns: list[dict[str, Any]] = []
+    for tactic in taxonomy.tactics:
+        cells = []
+        for technique in taxonomy.techniques:
+            if tactic.name not in technique.tactics:
+                continue
+            hits = by_technique.get(technique.id, [])
+            worst = (
+                min(hits, key=lambda f: _SEVERITY_RANK[f.severity]) if hits else None
+            )
+            cells.append(
+                {
+                    "id": technique.id,
+                    "name": technique.name,
+                    "count": len(hits),
+                    "severity": worst.severity.value.lower() if worst else "none",
+                    "ids": sorted({f.technique_id for f in hits}),
+                }
+            )
+        columns.append({"tactic": tactic.name, "tactic_id": tactic.id, "cells": cells})
+    return columns, rows, unmapped
 
 
 def _tool_version() -> str:

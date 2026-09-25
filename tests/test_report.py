@@ -10,7 +10,7 @@ import pytest
 
 import infiltr
 from infiltr.atlas.baseline import compare_findings, finding_fingerprint, parse_severity
-from infiltr.atlas.report import ATLASReport
+from infiltr.atlas.report import ATLASReport, _coverage_matrix
 from infiltr.models import AttackCategory, Finding, Severity
 
 
@@ -204,9 +204,11 @@ class TestHTMLReportValidation:
         report_with_all_severities.to_html(path)
         html = Path(path).read_text()
 
-        # Jinja2 autoescape should have escaped <script>
-        assert "<script>" not in html
-        assert "&lt;script&gt;" in html
+        # Jinja2 autoescape should have escaped the injected <script>; the
+        # report's own inline script is the only <script> tag allowed.
+        assert "<script>alert" not in html
+        assert "&lt;script&gt;alert" in html
+        assert html.count("<script>") == 1
 
         Path(path).unlink()
 
@@ -585,3 +587,88 @@ class TestBaselineComparison:
         assert parse_severity("high") == Severity.HIGH
         with pytest.raises(ValueError, match="Unknown severity"):
             parse_severity("urgent")
+
+
+class TestATLASCoverageMatrix:
+    """Tests for the HTML report's ATLAS coverage heatmap."""
+
+    @staticmethod
+    def _finding(technique_id: str, severity: Severity) -> Finding:
+        return Finding(
+            technique_id=technique_id,
+            technique_name="n",
+            tactic="t",
+            severity=severity,
+            attack_prompt="p",
+            response="r",
+            reproducibility=0.5,
+            remediation="fix",
+            category=AttackCategory.PROMPT_INJECTION,
+        )
+
+    def test_matrix_groups_subtechniques_under_parent(self, taxonomy) -> None:
+        findings = [
+            self._finding("AML.T0051.000", Severity.MEDIUM),
+            self._finding("AML.T0051.001", Severity.HIGH),
+            self._finding("AML.T0057", Severity.LOW),
+        ]
+        matrix, rows, unmapped = _coverage_matrix(findings, taxonomy)
+
+        cells = {
+            (col["tactic"], cell["id"]): cell for col in matrix for cell in col["cells"]
+        }
+        injection = cells[("Execution", "AML.T0051")]
+        assert injection["count"] == 2
+        assert injection["severity"] == "high"
+        assert injection["ids"] == ["AML.T0051.000", "AML.T0051.001"]
+        assert cells[("Exfiltration", "AML.T0057")]["severity"] == "low"
+        assert cells[("Impact", "AML.T0029")]["count"] == 0
+        assert [r["technique"] for r in rows] == ["AML.T0051", "AML.T0051", "AML.T0057"]
+        assert unmapped == 0
+
+    def test_matrix_lists_every_tactic_of_a_technique(self, taxonomy) -> None:
+        matrix, _, _ = _coverage_matrix([], taxonomy)
+        tactics_with_jailbreak = [
+            col["tactic"]
+            for col in matrix
+            if any(cell["id"] == "AML.T0054" for cell in col["cells"])
+        ]
+        assert tactics_with_jailbreak == ["Privilege Escalation", "Defense Evasion"]
+        assert [col["tactic"] for col in matrix] == [t.name for t in taxonomy.tactics]
+
+    def test_matrix_counts_unknown_ids_as_unmapped(self, taxonomy) -> None:
+        findings = [
+            self._finding("AML.T0054.000", Severity.HIGH),  # legacy ID -> parent
+            self._finding("CUSTOM-1", Severity.HIGH),
+        ]
+        _, rows, unmapped = _coverage_matrix(findings, taxonomy)
+        assert [r["technique"] for r in rows] == ["AML.T0054", "CUSTOM-1"]
+        assert unmapped == 1
+
+    def test_html_renders_interactive_matrix(self, sample_findings, tmp_path) -> None:
+        report = ATLASReport(sample_findings)
+        path = tmp_path / "report.html"
+        report.to_html(path)
+        html = path.read_text()
+
+        assert "MITRE ATLAS Coverage" in html
+        assert f"MITRE ATLAS {report.taxonomy.version}" in html
+        assert '<button type="button" class="matrix-cell heat-critical"' in html
+        assert 'data-technique="AML.T0051" aria-pressed="false"' in html
+        assert '<div class="finding" data-technique="AML.T0051">' in html
+        assert 'id="matrix-reset"' in html
+        for tactic in report.taxonomy.tactics:
+            assert tactic.name in html
+
+    def test_json_and_sarif_reference_atlas(self, sample_findings, tmp_path) -> None:
+        report = ATLASReport(sample_findings)
+        report.to_json(tmp_path / "r.json")
+        report.to_sarif(tmp_path / "r.sarif")
+
+        data = json.loads((tmp_path / "r.json").read_text())
+        assert data["atlas_version"] == report.taxonomy.version
+        sarif = json.loads((tmp_path / "r.sarif").read_text())
+        rule = sarif["runs"][0]["tool"]["driver"]["rules"][0]
+        assert rule["helpUri"] == (
+            f"https://atlas.mitre.org/techniques/{sample_findings[0].technique_id}"
+        )
