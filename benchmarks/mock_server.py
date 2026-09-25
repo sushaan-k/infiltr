@@ -13,8 +13,9 @@ hedges and compliant answers regardless of request ordering.
 
 Extra endpoints support the benchmarks themselves:
 
-* ``GET /stats`` -- JSON with the number of TCP connections accepted and
-  requests served since the last reset.
+* ``GET /stats`` -- JSON with the number of distinct TCP connections that
+  carried API requests, and the number of API requests served, since the
+  last reset.
 * ``POST /reset`` -- zero the counters.
 * ``POST /drip`` -- send headers immediately, then trickle the body one byte
   every ``--drip-interval`` seconds for ``--drip-seconds`` in total.  Used
@@ -57,29 +58,38 @@ ATTACK_REPLY = (
 
 
 class _Stats:
-    """Thread-safe request / connection counters."""
+    """Thread-safe request / connection counters.
+
+    ``connections`` is the number of distinct TCP connections that carried at
+    least one API request since the last reset.  Control requests
+    (``/stats``, ``/reset``) are not counted, so the benchmark's own
+    bookkeeping never shows up in the numbers.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self.connections = 0
+        self._next_connection_id = 0
+        self._connections: set[int] = set()
         self.requests = 0
 
-    def add_connection(self) -> None:
+    def new_connection_id(self) -> int:
         with self._lock:
-            self.connections += 1
+            self._next_connection_id += 1
+            return self._next_connection_id
 
-    def add_request(self) -> None:
+    def add_request(self, connection_id: int) -> None:
         with self._lock:
             self.requests += 1
+            self._connections.add(connection_id)
 
     def reset(self) -> None:
         with self._lock:
-            self.connections = 0
+            self._connections.clear()
             self.requests = 0
 
     def snapshot(self) -> dict[str, int]:
         with self._lock:
-            return {"connections": self.connections, "requests": self.requests}
+            return {"connections": len(self._connections), "requests": self.requests}
 
 
 class MockServer(ThreadingHTTPServer):
@@ -114,7 +124,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def setup(self) -> None:
         super().setup()
-        self.server.stats.add_connection()
+        # One handler instance serves every request on a keep-alive connection.
+        self.connection_id = self.server.stats.new_connection_id()
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
         """Silence per-request logging."""
@@ -151,7 +162,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
             return
 
-        self.server.stats.add_request()
+        self.server.stats.add_request(self.connection_id)
 
         if self.path == "/drip":
             self._drip()

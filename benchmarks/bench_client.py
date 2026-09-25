@@ -17,6 +17,11 @@ Scenarios (all offline, loopback only):
     Same batch through ``Target.send_probes`` (bounded-concurrency helper).
     Skipped when the package under test does not provide it.
 
+``idle_gap``
+    Alternates attack-model generations and target probes with a pause
+    between rounds longer than httpx's default 5 s keep-alive, as happens
+    when either model is slow.  Counts TCP connections opened.
+
 ``stalled``
     The target sends headers immediately and then trickles the body for
     several seconds.  Measures how long ``send_probe_safe`` takes to give up
@@ -39,6 +44,8 @@ FANOUT_LATENCY_MS = 25.0
 FANOUT_TIMEOUT_S = 1.0
 STALL_TIMEOUT_S = 0.5
 STALL_SECONDS = 3.0
+IDLE_ROUNDS = 4
+IDLE_GAP_S = 6.0
 
 
 def _target(endpoint: str, **kwargs: Any) -> Any:
@@ -103,6 +110,39 @@ async def _fanout(server: MockServerHandle, *, use_batch_api: bool) -> dict[str,
     }
 
 
+async def _idle_gap(server: MockServerHandle) -> dict[str, Any]:
+    from infiltr.attacks.generator import AttackGenerator
+    from infiltr.models import AttackAction, AttackCategory
+
+    target = _target(f"{server.base_url}/chat")
+    generator = AttackGenerator(
+        attack_model="mock-attacker",
+        api_key="sk-bench-offline",
+        api_base=f"{server.base_url}/v1",
+    )
+    action = AttackAction(
+        mutation_operator="synonym_replacement",
+        strategy="direct",
+        escalation=0.5,
+        category=AttackCategory.PROMPT_INJECTION,
+    )
+    server.reset()
+    for round_index in range(IDLE_ROUNDS):
+        if round_index:
+            await asyncio.sleep(IDLE_GAP_S)
+        prompt = await generator.generate(action)
+        await target.send_probe(prompt)
+    await generator.close()
+    await target.close()
+    stats = server.stats()
+    return {
+        "rounds": IDLE_ROUNDS,
+        "gap_s": IDLE_GAP_S,
+        "server_requests": stats["requests"],
+        "server_connections": stats["connections"],
+    }
+
+
 async def _stalled(server: MockServerHandle) -> dict[str, Any]:
     target = _target(
         f"{server.base_url}/drip",
@@ -139,6 +179,8 @@ def run() -> dict[str, Any]:
             results["fanout_batch_api"] = asyncio.run(
                 _fanout(server, use_batch_api=True)
             )
+    with mock_server() as server:
+        results["idle_gap"] = asyncio.run(_idle_gap(server))
     with mock_server(drip_interval=0.1, drip_seconds=STALL_SECONDS) as server:
         results["stalled_target"] = asyncio.run(_stalled(server))
     return results

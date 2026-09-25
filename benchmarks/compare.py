@@ -121,7 +121,7 @@ ROWS: list[Row] = [
         "/s",
     ),
     (
-        "Client: sequential TCP connections (400 probes)",
+        "Client: sequential, TCP connections used (400 probes)",
         _value("bench_client", "sequential_0ms", "server_connections"),
         "count",
     ),
@@ -141,19 +141,31 @@ ROWS: list[Row] = [
         "count",
     ),
     (
-        "Client: fan-out 1500 via gather, TCP connections",
+        "Client: fan-out 1500 via gather, TCP connections used",
         _value("bench_client", "fanout_gather", "server_connections"),
         "count",
     ),
     (
-        "Client: fan-out reported latency p50 (target: 25 ms)",
+        "Client: fan-out reported `latency_ms` p50 (server: 25 ms)",
         _median_ms("bench_client", "fanout_gather", "reported_latency_s"),
+        "ms",
+    ),
+    (
+        "Client: fan-out reported `latency_ms` p95 (server: 25 ms)",
+        _value(
+            "bench_client", "fanout_gather", "reported_latency_s", "p95", scale=1000.0
+        ),
         "ms",
     ),
     (
         "Client: fan-out 1500 via `send_probes`, wall time",
         _value("bench_client", "fanout_batch_api", "wall_s", scale=1000.0),
         "ms",
+    ),
+    (
+        "Client: 4 generate+probe rounds with 6 s idle gaps, TCP connections",
+        _value("bench_client", "idle_gap", "server_connections"),
+        "count",
     ),
     (
         "Client: stalled target, time to give up (timeout 0.5 s x 2 attempts)",
@@ -166,7 +178,7 @@ ROWS: list[Row] = [
         "ms",
     ),
     ("Scan: probes/s", _median("bench_scan", "probes_per_s"), "/s"),
-    ("Scan: TCP connections opened", _scan_first("server_connections"), "count"),
+    ("Scan: TCP connections used", _scan_first("server_connections"), "count"),
 ]
 
 
