@@ -57,3 +57,6 @@ infiltr-results.*
 infiltr-report.*
 security_assessment.*
 *.sarif
+
+# Benchmark scratch (baseline source snapshots)
+.bench-baseline/
