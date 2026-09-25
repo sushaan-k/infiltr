@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import openai
 
 from infiltr.attacks.mutations import MutationEngine
@@ -13,6 +14,16 @@ from infiltr.logging import get_logger
 from infiltr.models import AttackAction, AttackCategory, Conversation
 
 logger = get_logger("infiltr.attacks.generator")
+
+# Keep idle connections to the attack-model API for longer than the SDK's
+# 5 s default.  A target probe runs between consecutive generations, and a
+# slow target would otherwise force a fresh TCP + TLS handshake to the attack
+# model on every probe.  Connection counts match the SDK defaults.
+_ATTACK_MODEL_LIMITS = httpx.Limits(
+    max_connections=1000,
+    max_keepalive_connections=100,
+    keepalive_expiry=30.0,
+)
 
 _ATTACK_SYSTEM_PROMPT = """\
 You are a red-team attack prompt generator for LLM security testing.
@@ -64,7 +75,10 @@ class AttackGenerator:
         if api_base:
             client_kwargs["base_url"] = api_base
 
-        self._client = openai.AsyncOpenAI(**client_kwargs)
+        self._client = openai.AsyncOpenAI(
+            http_client=openai.DefaultAsyncHttpxClient(limits=_ATTACK_MODEL_LIMITS),
+            **client_kwargs,
+        )
         self._strategies: dict[str, dict[str, AttackStrategy]] = {}
 
     def _get_strategy(

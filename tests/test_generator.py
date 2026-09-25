@@ -45,6 +45,16 @@ class TestAttackGeneratorInit:
         )
         assert gen._client.base_url.host == "custom.api.com"
 
+    def test_http_client_keeps_connections_alive(self):
+        gen = AttackGenerator(api_key=_DUMMY_KEY)
+        pool = gen._client._client._transport._pool
+        assert pool._keepalive_expiry == 30.0
+        assert pool._max_connections == 1000
+        assert pool._max_keepalive_connections == 100
+        # SDK defaults the custom client must preserve.
+        assert gen._client._client.follow_redirects is True
+        assert gen._client.timeout == openai.DEFAULT_TIMEOUT
+
     def test_strategies_cache_starts_empty(self):
         gen = AttackGenerator(api_key=_DUMMY_KEY)
         assert gen._strategies == {}
