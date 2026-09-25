@@ -5,6 +5,11 @@ application and the attack model are served by the local mock server, then
 writes all three report formats.  This exercises the real probe loop (policy
 selection, attack generation through the ``openai`` SDK, target probing,
 reward classification, PPO updates, ATLAS mapping) with no external network.
+
+PyTorch is pinned to one intra-op thread.  The policy network is tiny, so
+multi-threaded kernels buy nothing, while on a busy host their thread
+contention made wall time swing by an order of magnitude between otherwise
+identical runs and drowned out everything else in this benchmark.
 """
 
 from __future__ import annotations
@@ -58,9 +63,12 @@ async def _scan(base_url: str, out_dir: Path) -> dict[str, float]:
 
 
 def run() -> dict[str, Any]:
+    import torch
+
     from infiltr.logging import configure_logging
 
     configure_logging(level="ERROR")
+    torch.set_num_threads(1)
 
     runs: list[dict[str, float]] = []
     connections: list[int] = []
@@ -79,6 +87,7 @@ def run() -> dict[str, Any]:
 
     probes = [r["probes"] for r in runs]
     return {
+        "torch_threads": torch.get_num_threads(),
         "interactions": INTERACTIONS,
         "probes": probes,
         "setup_s": summarize([r["setup_s"] for r in runs]),

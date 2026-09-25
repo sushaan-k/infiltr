@@ -1,15 +1,20 @@
-"""Render a Markdown before/after table from two ``run_all.py`` result files.
+"""Render a Markdown before/after table from ``run_all.py`` result files.
 
 Usage::
 
-    python benchmarks/compare.py benchmarks/results/before.json \\
-        benchmarks/results/after.json > benchmarks/results/comparison.md
+    python benchmarks/compare.py \\
+        --before benchmarks/results/before-*.json \\
+        --after benchmarks/results/after-*.json > benchmarks/results/comparison.md
+
+When several files are given per side (interleaved rounds), each metric is
+the median of the per-round values, which damps drift on a shared host.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import statistics
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -207,48 +212,60 @@ def _change(before: float | None, after: float | None, unit: str) -> str:
     return f"{ratio:.2f}x"
 
 
-def render(before: dict[str, Any], after: dict[str, Any]) -> str:
+def _median_of(values: list[float | None]) -> float | None:
+    present = [v for v in values if v is not None]
+    return statistics.median(present) if present else None
+
+
+def render(befores: list[dict[str, Any]], afters: list[dict[str, Any]]) -> str:
+    before_meta, after_meta = befores[0]["meta"], afters[0]["meta"]
     lines = [
-        f"Before: `{before['meta'].get('revision')}` | "
-        f"After: `{after['meta'].get('revision')}` | "
-        f"Python {after['meta'].get('python')} | "
-        f"{after['meta'].get('cpu_count')} CPUs | "
-        f"{after['meta'].get('platform')}",
+        f"Before: `{before_meta.get('revision')}` ({len(befores)} rounds) | "
+        f"After: `{after_meta.get('revision')}` ({len(afters)} rounds) | "
+        f"Python {after_meta.get('python')} | "
+        f"{after_meta.get('cpu_count')} CPUs | "
+        f"{after_meta.get('platform')}",
+        "",
+        "Each cell is the median across rounds of that round's value (itself a "
+        "median of repeats where the benchmark repeats).",
         "",
         "| Benchmark | Before | After | Change |",
         "| --- | ---: | ---: | ---: |",
     ]
     for label, extract, unit in ROWS:
-        b, a = extract(before), extract(after)
+        b = _median_of([extract(run) for run in befores])
+        a = _median_of([extract(run) for run in afters])
         if b is None and a is None:
             continue
         lines.append(
             f"| {label} | {_fmt(b, unit)} | {_fmt(a, unit)} | {_change(b, a, unit)} |"
         )
 
-    digests_b = _get(before, "bench_report", "output_digests") or {}
-    digests_a = _get(after, "bench_report", "output_digests") or {}
-    if digests_a:
-        same = digests_a == digests_b
+    digest_sets = [
+        _get(run, "bench_report", "output_digests") or {} for run in befores + afters
+    ]
+    if any(digest_sets):
+        same = all(d == digest_sets[0] for d in digest_sets)
         lines += [
             "",
             "Report output digests (timestamps normalised) "
-            + ("are **identical** before and after." if same else "**differ**:"),
+            + (
+                "are **identical** across every before and after round."
+                if same
+                else "**differ** between runs."
+            ),
         ]
-        if not same:
-            for key in sorted(set(digests_a) | set(digests_b)):
-                lines.append(f"- {key}: {digests_b.get(key)} -> {digests_a.get(key)}")
     return "\n".join(lines) + "\n"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("before", type=Path)
-    parser.add_argument("after", type=Path)
+    parser.add_argument("--before", type=Path, nargs="+", required=True)
+    parser.add_argument("--after", type=Path, nargs="+", required=True)
     args = parser.parse_args()
-    before = json.loads(args.before.read_text())
-    after = json.loads(args.after.read_text())
-    print(render(before, after), end="")
+    befores = [json.loads(path.read_text()) for path in args.before]
+    afters = [json.loads(path.read_text()) for path in args.after]
+    print(render(befores, afters), end="")
 
 
 if __name__ == "__main__":

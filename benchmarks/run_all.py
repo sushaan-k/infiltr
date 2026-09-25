@@ -88,6 +88,11 @@ def main() -> None:
         help="Run only the named benchmark(s).",
     )
     parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Merge the selected benchmarks into an existing results file.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -96,7 +101,12 @@ def main() -> None:
     args = parser.parse_args()
 
     selected = args.only or ["startup", *CHILD_BENCHMARKS]
+    output = args.output or BENCH_DIR / "results" / f"{args.label}.json"
+    previous: dict[str, Any] = {}
+    if args.update and output.exists():
+        previous = json.loads(output.read_text())
     results: dict[str, Any] = {
+        **previous,
         "meta": {
             "label": args.label,
             "revision": args.revision or _git_revision(),
@@ -104,7 +114,7 @@ def main() -> None:
             "platform": platform.platform(),
             "cpu_count": os.cpu_count(),
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
+        },
     }
     for name in selected:
         print(f"[{args.label}] running {name} ...", file=sys.stderr, flush=True)
@@ -119,7 +129,6 @@ def main() -> None:
             flush=True,
         )
 
-    output = args.output or BENCH_DIR / "results" / f"{args.label}.json"
     write_json(output, results)
     print(f"wrote {output}", file=sys.stderr)
 
