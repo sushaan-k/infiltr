@@ -1,0 +1,80 @@
+name: "infiltr LLM security scan"
+description: "Run an infiltr red-team scan against an LLM endpoint and emit a SARIF report."
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  target:
+    description: "Target LLM endpoint URL."
+    required: true
+  auth:
+    description: "Auth header value for the target (e.g. 'Bearer sk-...')."
+    required: false
+    default: ""
+  categories:
+    description: "Comma-separated attack categories."
+    required: false
+    default: "prompt_injection,goal_hijacking"
+  max-interactions:
+    description: "Maximum number of probes to send."
+    required: false
+    default: "100"
+  output-path:
+    description: "Base path (without extension) for the scan result files."
+    required: false
+    default: "infiltr-results"
+  baseline:
+    description: "Optional path to a previous JSON report to diff against."
+    required: false
+    default: ""
+  fail-on-new:
+    description: "Fail (exit 2) on new findings at or above this severity."
+    required: false
+    default: "HIGH"
+  openai-api-key:
+    description: "API key for the attack-generation model (sets OPENAI_API_KEY)."
+    required: false
+    default: ""
+
+outputs:
+  sarif-file:
+    description: "Path to the generated SARIF report."
+    value: "${{ steps.report.outputs.sarif-file }}"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install infiltr
+      shell: bash
+      run: pip install "infiltr==0.2.*"
+
+    - name: Run scan
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        args=(scan
+          --target "${{ inputs.target }}"
+          --categories "${{ inputs.categories }}"
+          --max-interactions "${{ inputs.max-interactions }}"
+          --output all
+          --output-path "${{ inputs.output-path }}")
+        if [ -n "${{ inputs.auth }}" ]; then
+          args+=(--auth "${{ inputs.auth }}")
+        fi
+        infiltr "${args[@]}"
+
+    - name: Generate SARIF report
+      id: report
+      shell: bash
+      run: |
+        args=(report
+          --input "${{ inputs.output-path }}.json"
+          --output sarif
+          --output-path "${{ inputs.output-path }}-report")
+        if [ -n "${{ inputs.baseline }}" ]; then
+          args+=(--baseline "${{ inputs.baseline }}" --only-new --fail-on-new "${{ inputs.fail-on-new }}")
+        fi
+        infiltr "${args[@]}"
+        echo "sarif-file=${{ inputs.output-path }}-report.sarif" >> "$GITHUB_OUTPUT"

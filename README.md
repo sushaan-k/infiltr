@@ -98,6 +98,9 @@ infiltr scan \
 # Generate reports from previous scan results
 infiltr report --input infiltr-results.json --output html
 
+# The pre-0.2 `phantom` command is kept as a legacy alias:
+# phantom scan --target https://api.example.com/chat --output json
+
 # Compare against a previous scan and gate only on new high-risk findings
 infiltr report \
   --input infiltr-results.json \
@@ -195,6 +198,30 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: infiltr-report.sarif
+```
+
+Or use the bundled composite action, which wraps the scan and report commands:
+
+```yaml
+# .github/workflows/security.yml
+name: LLM Security Scan
+on: [push]
+jobs:
+  infiltr-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: scan
+        uses: sushaan-k/infiltr@v0.2.0
+        with:
+          target: ${{ secrets.API_ENDPOINT }}
+          auth: ${{ secrets.API_AUTH }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          baseline: security-baseline.json
+          fail-on-new: HIGH
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif-file }}
 ```
 
 ## API Reference
