@@ -228,14 +228,14 @@ infiltr/
 │       │   ├── mapper.py       # ATLAS technique mapping
 │       │   ├── taxonomy.py     # ATLAS technique definitions
 │       │   └── report.py       # Report generation
-│       └── cli.py              # CLI interface
+│       ├── cli.py              # CLI interface
+│       └── atlas/data/
+│           └── techniques.json # MITRE ATLAS technique database (packaged)
 ├── tests/
-├── examples/
-│   ├── scan_chatbot.py
-│   ├── scan_agent.py
-│   └── ci_integration.py
-└── atlas_data/
-    └── techniques.json         # MITRE ATLAS technique database
+└── examples/
+    ├── scan_chatbot.py
+    ├── scan_agent.py
+    └── ci_integration.py
 ```
 
 ### Research References

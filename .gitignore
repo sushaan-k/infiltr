@@ -57,3 +57,4 @@ infiltr-results.*
 infiltr-report.*
 security_assessment.*
 *.sarif
+dist/

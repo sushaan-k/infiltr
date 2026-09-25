@@ -67,7 +67,7 @@ class ATLASTaxonomy:
 
     Args:
         data_path: Path to the ATLAS techniques JSON file. Defaults
-            to the bundled atlas_data/techniques.json.
+            to the packaged infiltr/atlas/data/techniques.json.
     """
 
     def __init__(self, data_path: Path | str | None = None) -> None:
