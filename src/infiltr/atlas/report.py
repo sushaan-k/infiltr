@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import shutil
 import subprocess
 import tempfile
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jinja2 import BaseLoader, Environment
+from jinja2 import BaseLoader, Environment, Template
 
 from infiltr.atlas.baseline import (
     BaselineComparison,
@@ -351,6 +353,11 @@ class ATLASReport:
             severity = Severity(severity.upper())
         return sum(1 for f in self._findings if f.severity == severity)
 
+    def _severity_counts(self) -> dict[Severity, int]:
+        """Count findings for every severity level in a single pass."""
+        counts = Counter(f.severity for f in self._findings)
+        return {s: counts.get(s, 0) for s in Severity}
+
     def to_json(self, path: str | Path) -> None:
         """Export findings as a JSON file.
 
@@ -361,23 +368,11 @@ class ATLASReport:
             ReportGenerationError: If the file cannot be written.
         """
         try:
-            summary = dict(self._summary)
-            summary.update(
-                {
-                    "total_findings": len(self._findings),
-                    "total_probes": self._total_probes,
-                    "novel_attacks": self._novel_count,
-                    "by_severity": {
-                        s.value: self.count_by_severity(s) for s in Severity
-                    },
-                }
-            )
             data = {
                 "infiltr_version": _tool_version(),
                 "atlas_version": self.taxonomy.version,
                 "generated_at": datetime.now(UTC).isoformat(),
-                "summary": summary,
-                "findings": [_finding_to_dict(f) for f in self._findings],
+                **self.to_dict(),
             }
             Path(path).write_text(
                 json.dumps(data, indent=2, default=str),
@@ -397,16 +392,12 @@ class ATLASReport:
             ReportGenerationError: If the file cannot be written.
         """
         try:
-            env = Environment(
-                loader=BaseLoader(),
-                autoescape=True,
-            )
-            template = env.from_string(_HTML_TEMPLATE)
+            counts = self._severity_counts()
             matrix, finding_rows, unmapped_count = _coverage_matrix(
                 self._findings, self.taxonomy
             )
 
-            html = template.render(
+            html = _html_template().render(
                 matrix=matrix,
                 finding_rows=finding_rows,
                 unmapped_count=unmapped_count,
@@ -414,10 +405,10 @@ class ATLASReport:
                 timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
                 total_findings=len(self._findings),
                 total_probes=self._total_probes,
-                critical_count=self.count_by_severity(Severity.CRITICAL),
-                high_count=self.count_by_severity(Severity.HIGH),
-                medium_count=self.count_by_severity(Severity.MEDIUM),
-                low_count=self.count_by_severity(Severity.LOW),
+                critical_count=counts[Severity.CRITICAL],
+                high_count=counts[Severity.HIGH],
+                medium_count=counts[Severity.MEDIUM],
+                low_count=counts[Severity.LOW],
                 version=_tool_version(),
             )
 
@@ -618,7 +609,9 @@ class ATLASReport:
                 "total_findings": len(self._findings),
                 "total_probes": self._total_probes,
                 "novel_attacks": self._novel_count,
-                "by_severity": {s.value: self.count_by_severity(s) for s in Severity},
+                "by_severity": {
+                    s.value: count for s, count in self._severity_counts().items()
+                },
             }
         )
         return {
@@ -679,6 +672,18 @@ def _coverage_matrix(
     return columns, rows, unmapped
 
 
+@functools.cache
+def _html_template() -> Template:
+    """Compile the HTML report template once per process.
+
+    Building the Jinja2 environment and compiling the template costs a few
+    milliseconds -- the bulk of rendering a typical (small) report -- and
+    the template is a constant, so the compiled form is reused.
+    """
+    env = Environment(loader=BaseLoader(), autoescape=True)
+    return env.from_string(_HTML_TEMPLATE)
+
+
 def _tool_version() -> str:
     """Return the installed infiltr version (imported lazily to avoid a cycle)."""
     from infiltr import __version__
@@ -702,7 +707,10 @@ def _finding_from_mapping(data: object) -> Finding:
 
 def _finding_to_dict(finding: Finding) -> dict[str, Any]:
     """Serialize a finding with the stable baseline fingerprint included."""
-    data: dict[str, Any] = json.loads(finding.model_dump_json())
+    # ``mode="json"`` yields the same JSON-compatible values as a
+    # ``model_dump_json()`` -> ``json.loads()`` round trip, without the
+    # intermediate string.
+    data: dict[str, Any] = finding.model_dump(mode="json")
     data["fingerprint"] = finding_fingerprint(finding)
     return data
 

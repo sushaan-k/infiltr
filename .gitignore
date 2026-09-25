@@ -59,3 +59,6 @@ security_assessment.*
 *.sarif
 dist/
 .agent-report.md
+
+# Benchmark scratch (baseline source snapshots)
+.bench-baseline/

@@ -350,7 +350,12 @@ ruff check src/ tests/
 
 # Run type checker
 mypy src/infiltr/
+
+# Run the offline benchmark suite (local mock server, no network)
+python benchmarks/run_all.py --label after
 ```
+
+See [docs/benchmarks.md](docs/benchmarks.md) for methodology and results.
 
 ## Research References
 

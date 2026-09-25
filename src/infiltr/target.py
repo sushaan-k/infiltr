@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Sequence
 from typing import Any
 
 import httpx
@@ -14,6 +15,17 @@ from infiltr.logging import get_logger
 from infiltr.models import Conversation
 
 logger = get_logger("infiltr.target")
+
+# Upper bound on the TCP/TLS connect phase.  An unreachable or black-holed
+# endpoint should fail fast even when a generous response timeout is
+# configured for slow LLM generations.
+_CONNECT_TIMEOUT_CAP_S = 10.0
+
+# How long an idle pooled connection is kept for reuse.  httpx's default
+# (5 s) is shorter than a typical attack-model generation, which runs between
+# consecutive probes, so the target connection would otherwise be dropped and
+# re-established (TCP + TLS handshake) for nearly every probe of a scan.
+_KEEPALIVE_EXPIRY_S = 30.0
 
 # Base delay for exponential backoff between retries (seconds).
 _RETRY_BACKOFF_BASE_S: float = 0.5
@@ -73,9 +85,23 @@ class TargetConfig(BaseModel):
     )
     timeout_seconds: float = Field(
         default=30.0,
-        description="HTTP request timeout in seconds",
+        description=(
+            "Deadline in seconds for each HTTP attempt (connect, send and "
+            "receive combined)"
+        ),
     )
     max_retries: int = Field(default=3, ge=0, le=10)
+    max_concurrency: int = Field(
+        default=20,
+        ge=1,
+        le=256,
+        description=(
+            "Maximum number of requests in flight to the target at once. "
+            "Also sizes the connection pool, so callers that fan out never "
+            "queue inside the pool (where waiting would count against the "
+            "request timeout and inflate measured latency)."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_prompt_consistency(self) -> TargetConfig:
@@ -101,6 +127,7 @@ class Target:
         response_path: Dot-separated path to extract response text.
         timeout_seconds: HTTP request timeout.
         max_retries: Maximum number of retry attempts on failure.
+        max_concurrency: Maximum number of requests in flight at once.
         config: Optional TargetConfig to use instead of individual params.
     """
 
@@ -116,6 +143,7 @@ class Target:
         timeout: float | None = None,
         max_retries: int = 3,
         config: TargetConfig | None = None,
+        max_concurrency: int = 20,
     ) -> None:
         effective_timeout = timeout if timeout is not None else timeout_seconds
         if config is not None:
@@ -130,8 +158,10 @@ class Target:
                 response_path=response_path,
                 timeout_seconds=effective_timeout,
                 max_retries=max_retries,
+                max_concurrency=max_concurrency,
             )
         self._client: httpx.AsyncClient | None = None
+        self._slots: asyncio.Semaphore | None = None
         self._probe_count: int = 0
 
     @property
@@ -154,23 +184,62 @@ class Target:
 
         The client is created once and reused across all probes,
         providing connection pooling for multi-turn and batched
-        strategies.  Pool limits are set to allow concurrent
-        requests to the same host.
+        strategies.  The pool holds up to ``max_concurrency``
+        connections and keeps every one of them alive between
+        requests, so a burst of concurrent probes does not churn
+        connections.
 
         Returns:
             An httpx AsyncClient instance.
         """
         if self._client is None or self._client.is_closed:
+            size = self._config.max_concurrency
             pool_limits = httpx.Limits(
-                max_connections=20,
-                max_keepalive_connections=10,
+                max_connections=size,
+                max_keepalive_connections=size,
+                keepalive_expiry=_KEEPALIVE_EXPIRY_S,
             )
+            timeout_s = self._config.timeout_seconds
             self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self._config.timeout_seconds),
+                timeout=httpx.Timeout(
+                    timeout_s,
+                    connect=min(timeout_s, _CONNECT_TIMEOUT_CAP_S),
+                ),
                 headers=self._config.auth,
                 limits=pool_limits,
             )
+            self._slots = asyncio.Semaphore(size)
         return self._client
+
+    async def _post(
+        self,
+        client: httpx.AsyncClient,
+        body: dict[str, Any],
+    ) -> tuple[httpx.Response, float]:
+        """POST one request, bounded by the concurrency limit and deadline.
+
+        The concurrency slot is acquired *before* the clock starts, so time
+        spent waiting behind other in-flight probes neither counts against
+        ``timeout_seconds`` nor inflates the reported latency.  The deadline
+        covers the whole attempt: httpx's own timeouts apply per network
+        operation, so a server that trickles its response slowly would
+        otherwise never time out.
+
+        Returns:
+            The response and the attempt's latency in milliseconds.
+
+        Raises:
+            TimeoutError: If the attempt exceeds ``timeout_seconds``.
+            httpx.HTTPError: On transport-level failures.
+        """
+        slots = self._slots
+        if slots is None:  # client injected directly rather than via _get_client
+            slots = self._slots = asyncio.Semaphore(self._config.max_concurrency)
+        async with slots:
+            start_time = time.monotonic()
+            async with asyncio.timeout(self._config.timeout_seconds):
+                response = await client.post(self._config.endpoint, json=body)
+            return response, (time.monotonic() - start_time) * 1000
 
     def _build_request_body(
         self,
@@ -281,9 +350,7 @@ class Target:
                 await asyncio.sleep(_retry_delay(attempt - 1, retry_after))
                 retry_after = None
             try:
-                start_time = time.monotonic()
-                response = await client.post(self._config.endpoint, json=body)
-                latency_ms = (time.monotonic() - start_time) * 1000
+                response, latency_ms = await self._post(client, body)
 
                 if response.status_code == 429 or response.status_code >= 500:
                     last_error = TargetResponseError(
@@ -320,7 +387,7 @@ class Target:
 
                 return text, latency_ms
 
-            except httpx.TimeoutException as exc:
+            except (httpx.TimeoutException, TimeoutError) as exc:
                 last_error = exc
                 logger.warning(
                     "target_timeout",
@@ -376,6 +443,57 @@ class Target:
                 error_message=str(exc),
             )
 
+    async def send_probes(
+        self,
+        prompts: Sequence[str],
+        *,
+        concurrency: int | None = None,
+    ) -> list[tuple[str, float] | ProbeTimeoutResult]:
+        """Send independent single-turn probes concurrently.
+
+        At most ``concurrency`` probes (capped at ``max_concurrency``) are in
+        flight at any time, using a fixed set of workers rather than one task
+        per prompt.  Each probe behaves exactly like :meth:`send_probe_safe`;
+        results are returned in the same order as ``prompts``.
+
+        Args:
+            prompts: The attack prompts to send.
+            concurrency: Optional lower limit on in-flight probes.
+
+        Returns:
+            One ``(response_text, latency_ms)`` tuple or
+            :class:`ProbeTimeoutResult` per prompt.
+
+        Raises:
+            ValueError: If ``concurrency`` is less than 1.
+            TargetResponseError: If the target rejects a probe (4xx) or
+                returns an unparseable response; remaining probes are
+                cancelled.
+        """
+        limit = self._config.max_concurrency
+        if concurrency is not None:
+            if concurrency < 1:
+                raise ValueError("concurrency must be at least 1")
+            limit = min(limit, concurrency)
+
+        results: dict[int, tuple[str, float] | ProbeTimeoutResult] = {}
+        indices = iter(range(len(prompts)))
+
+        async def worker() -> None:
+            for index in indices:
+                results[index] = await self.send_probe_safe(prompts[index])
+
+        tasks = [asyncio.create_task(worker()) for _ in range(min(limit, len(prompts)))]
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
+        return [results[index] for index in range(len(prompts))]
+
     async def send_conversation_turn(
         self,
         prompt: str,
@@ -411,10 +529,7 @@ class Target:
         """
         try:
             client = await self._get_client()
-            response = await client.post(
-                self._config.endpoint,
-                json=self._build_request_body("Hello"),
-            )
+            response, _ = await self._post(client, self._build_request_body("Hello"))
             return response.status_code < 500
         except (httpx.HTTPError, Exception):
             return False
@@ -424,3 +539,4 @@ class Target:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
+            self._slots = None

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 import httpx
 import pytest
 import respx
@@ -563,8 +566,183 @@ class TestConnectionPooling:
         client = await target._get_client()
         pool = client._transport._pool
         assert pool._max_connections == 20
-        assert pool._max_keepalive_connections == 10
+        assert pool._max_keepalive_connections == 20
+        assert pool._keepalive_expiry == 30.0
         await target.close()
+
+    @pytest.mark.asyncio
+    async def test_pool_sized_by_max_concurrency(self) -> None:
+        target = Target(endpoint="https://api.example.com/chat", max_concurrency=4)
+        client = await target._get_client()
+        pool = client._transport._pool
+        assert pool._max_connections == 4
+        assert pool._max_keepalive_connections == 4
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_connect_timeout_is_capped(self) -> None:
+        target = Target(endpoint="https://api.example.com/chat", timeout_seconds=30.0)
+        client = await target._get_client()
+        assert client.timeout.connect == 10.0
+        assert client.timeout.read == 30.0
+        await target.close()
+
+        short = Target(endpoint="https://api.example.com/chat", timeout_seconds=2.0)
+        client = await short._get_client()
+        assert client.timeout.connect == 2.0
+        await short.close()
+
+
+def _ok(content: str) -> httpx.Response:
+    return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+
+def _install_transport(target: Target, handler: object) -> None:
+    """Route the target's requests to an in-process async handler."""
+    target._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),  # type: ignore[arg-type]
+    )
+
+
+class TestBoundedConcurrency:
+    """Tests for the concurrency limit, per-attempt deadline and batch API."""
+
+    @pytest.mark.asyncio
+    async def test_in_flight_requests_bounded(self) -> None:
+        in_flight = 0
+        peak = 0
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return _ok("ok")
+
+        target = Target(endpoint="https://api.example.com/chat", max_concurrency=3)
+        _install_transport(target, handler)
+        results = await asyncio.gather(*(target.send_probe(f"p{i}") for i in range(12)))
+        assert len(results) == 12
+        assert peak == 3
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_latency_excludes_time_waiting_for_a_slot(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            await asyncio.sleep(0.05)
+            return _ok("ok")
+
+        target = Target(endpoint="https://api.example.com/chat", max_concurrency=1)
+        _install_transport(target, handler)
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        results = await asyncio.gather(*(target.send_probe(f"p{i}") for i in range(4)))
+        elapsed = loop.time() - start
+
+        assert elapsed >= 0.19  # the four probes really were serialized
+        for _, latency_ms in results:
+            assert latency_ms < 150  # ...but each reports only its own time
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_deadline_covers_whole_attempt(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            await asyncio.sleep(5)
+            return _ok("too late")
+
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            timeout_seconds=0.1,
+            max_retries=1,
+        )
+        _install_transport(target, handler)
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        result = await target.send_probe_safe("slow")
+        assert isinstance(result, ProbeTimeoutResult)
+        assert loop.time() - start < 1.0
+        assert target.probe_count == 0
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_send_probes_preserves_order(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            prompt = json.loads(request.content)["messages"][-1]["content"]
+            index = int(prompt.removeprefix("p"))
+            await asyncio.sleep(0.001 * (10 - index))
+            return _ok(f"reply to {prompt}")
+
+        target = Target(endpoint="https://api.example.com/chat")
+        _install_transport(target, handler)
+        prompts = [f"p{i}" for i in range(10)]
+        results = await target.send_probes(prompts, concurrency=4)
+        texts = [r[0] for r in results if isinstance(r, tuple)]
+        assert texts == [f"reply to {p}" for p in prompts]
+        assert target.probe_count == 10
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_send_probes_respects_concurrency_argument(self) -> None:
+        in_flight = 0
+        peak = 0
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.005)
+            in_flight -= 1
+            return _ok("ok")
+
+        target = Target(endpoint="https://api.example.com/chat")
+        _install_transport(target, handler)
+        await target.send_probes([f"p{i}" for i in range(20)], concurrency=2)
+        assert peak == 2
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_send_probes_reports_timeouts_per_probe(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            prompt = json.loads(request.content)["messages"][-1]["content"]
+            if prompt == "stall":
+                await asyncio.sleep(5)
+            return _ok("ok")
+
+        target = Target(
+            endpoint="https://api.example.com/chat",
+            timeout_seconds=0.1,
+            max_retries=0,
+        )
+        _install_transport(target, handler)
+        results = await target.send_probes(["a", "stall", "b"])
+        assert isinstance(results[0], tuple)
+        assert isinstance(results[1], ProbeTimeoutResult)
+        assert isinstance(results[2], tuple)
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_send_probes_propagates_client_errors(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(403, text="forbidden")
+
+        target = Target(endpoint="https://api.example.com/chat")
+        _install_transport(target, handler)
+        with pytest.raises(TargetResponseError):
+            await target.send_probes(["a", "b", "c"])
+        await target.close()
+
+    @pytest.mark.asyncio
+    async def test_send_probes_edge_cases(self) -> None:
+        target = Target(endpoint="https://api.example.com/chat")
+        assert await target.send_probes([]) == []
+        with pytest.raises(ValueError, match="concurrency"):
+            await target.send_probes(["a"], concurrency=0)
+        await target.close()
+
+    def test_max_concurrency_validated(self) -> None:
+        with pytest.raises(ValueError):
+            TargetConfig(endpoint="https://api.example.com/chat", max_concurrency=0)
 
 
 class TestTargetRetryAndErrors:
