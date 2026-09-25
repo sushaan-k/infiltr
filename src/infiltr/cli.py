@@ -1,20 +1,20 @@
-"""Command-line interface for infiltr."""
+"""Command-line interface for infiltr.
+
+Module-level imports are deliberately limited to what Typer needs to build
+the command tree.  Everything else -- the RL stack, the HTTP clients, the
+report renderer, structured logging, pydantic models -- is imported inside
+the command that uses it, so ``infiltr --help`` and ``infiltr version`` start
+in a fraction of the time a full scan needs to import.
+"""
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
-
-from infiltr.atlas.baseline import parse_severity
-from infiltr.logging import configure_logging
 
 if TYPE_CHECKING:
     from infiltr.atlas.baseline import BaselineComparison
@@ -91,6 +91,12 @@ def scan(
     ),
 ) -> None:
     """Run a red-team security scan against a target LLM endpoint."""
+    import asyncio
+
+    from rich.panel import Panel
+
+    from infiltr.logging import configure_logging
+
     log_level = "DEBUG" if verbose else "INFO"
     configure_logging(level=log_level, json_output=json_logs)
 
@@ -146,6 +152,8 @@ async def _run_scan(
         multi_turn: Whether to use multi-turn strategies.
         auth: Authentication headers.
     """
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
     from infiltr.atlas.report import ATLASReport
     from infiltr.redteam import RedTeam
     from infiltr.target import Target
@@ -194,6 +202,7 @@ def _print_summary(results: RedTeamResults) -> None:
     Args:
         results: The RedTeamResults to summarize.
     """
+    from rich.table import Table
 
     table = Table(title="Assessment Summary", border_style="blue")
     table.add_column("Metric", style="bold")
@@ -263,7 +272,9 @@ def report(
     ),
 ) -> None:
     """Generate reports from a previous scan's JSON results."""
+    from infiltr.atlas.baseline import parse_severity
     from infiltr.atlas.report import ATLASReport
+    from infiltr.logging import configure_logging
 
     configure_logging()
 

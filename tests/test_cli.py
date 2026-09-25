@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 import infiltr
@@ -594,6 +595,48 @@ class TestScanCommand:
                 ],
             )
             assert result.exit_code == 0
+
+
+class TestLazyImports:
+    """The CLI and package entry points must not import the heavy stack."""
+
+    def _loaded_modules(self, code: str) -> set[str]:
+        import subprocess
+        import sys
+
+        out = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                f"{code}; import sys; print(' '.join(sorted(sys.modules)))",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return set(out.stdout.split())
+
+    def test_cli_import_skips_heavy_dependencies(self):
+        loaded = self._loaded_modules("import infiltr.cli")
+        for heavy in ("torch", "numpy", "openai", "httpx", "jinja2", "pydantic"):
+            assert heavy not in loaded, heavy
+
+    def test_lazy_package_exports_resolve(self):
+        import infiltr.atlas
+        from infiltr.atlas.report import ATLASReport
+        from infiltr.redteam import RedTeam
+        from infiltr.target import Target
+
+        assert infiltr.RedTeam is RedTeam
+        assert infiltr.Target is Target
+        assert infiltr.ATLASReport is ATLASReport
+        assert infiltr.atlas.ATLASReport is ATLASReport
+        assert "RedTeam" in dir(infiltr)
+        assert "__version__" in dir(infiltr)
+        with pytest.raises(AttributeError):
+            _ = infiltr.NotAThing
+        with pytest.raises(AttributeError):
+            _ = infiltr.atlas.NotAThing
 
 
 class TestNoArgsHelp:
