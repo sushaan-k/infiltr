@@ -5,7 +5,6 @@ from __future__ import annotations
 from infiltr.atlas.taxonomy import ATLASTaxonomy
 from infiltr.logging import get_logger
 from infiltr.models import (
-    AttackCategory,
     Finding,
     OutcomeType,
     ProbeResult,
@@ -16,55 +15,8 @@ logger = get_logger("infiltr.atlas.mapper")
 
 _SEVERITY_RANK = {severity: idx for idx, severity in enumerate(Severity)}
 
-_CATEGORY_TECHNIQUE_MAP: dict[AttackCategory, list[str]] = {
-    AttackCategory.PROMPT_INJECTION: [
-        "AML.T0051",
-        "AML.T0051.000",
-        "AML.T0051.001",
-        "AML.T0051.002",
-    ],
-    AttackCategory.GOAL_HIJACKING: [
-        "AML.T0054",
-        "AML.T0054.000",
-        "AML.T0054.001",
-        "AML.T0054.002",
-    ],
-    AttackCategory.DATA_EXFILTRATION: [
-        "AML.T0024",
-        "AML.T0024.000",
-        "AML.T0024.001",
-        "AML.T0024.002",
-    ],
-    AttackCategory.DENIAL_OF_SERVICE: [
-        "AML.T0029",
-        "AML.T0029.000",
-        "AML.T0029.001",
-        "AML.T0029.002",
-    ],
-}
-
-_REMEDIATION_TEMPLATES: dict[str, str] = {
-    "AML.T0051": (
-        "Implement robust input validation and sanitization. "
-        "Enforce instruction hierarchy so system prompts take precedence "
-        "over user inputs. Consider using a dedicated prompt firewall."
-    ),
-    "AML.T0054": (
-        "Harden system prompts against extraction attempts. "
-        "Implement multi-layer safety alignment with refusal training. "
-        "Validate all tool calls against an allowlist before execution."
-    ),
-    "AML.T0024": (
-        "Apply differential privacy techniques to model training. "
-        "Scan outputs for PII and sensitive data before returning. "
-        "Enforce strict data isolation between user sessions."
-    ),
-    "AML.T0029": (
-        "Enforce token budgets and rate limits per session. "
-        "Set recursion depth limits for tool-calling agents. "
-        "Deploy content safety filters on all outputs."
-    ),
-}
+# Used only when a probe's category has no mapping in the taxonomy.
+_FALLBACK_TECHNIQUE_ID = "AML.T0051"
 
 
 class ATLASMapper:
@@ -105,8 +57,9 @@ class ATLASMapper:
             technique_name = f"Unknown ({technique_id})"
             tactic = "Unknown"
         else:
-            sub = technique.get_subtechnique(technique_id)
-            technique_name = sub.name if sub else technique.name
+            technique_name = (
+                self._taxonomy.get_display_name(technique_id) or technique.name
+            )
             tactic = technique.tactic
 
         severity = self._determine_severity(probe, technique_id)
@@ -189,6 +142,11 @@ class ATLASMapper:
     def _resolve_technique_id(self, probe: ProbeResult) -> str:
         """Determine the most specific ATLAS technique ID for a probe.
 
+        An explicit ``probe.technique_id`` wins. Otherwise the category's
+        mapping in the taxonomy decides, in order: the info-leak override,
+        the strategy override (``multi_turn`` for turns after the first of a
+        conversation, else ``probe.metadata["strategy"]``), then the default.
+
         Args:
             probe: The probe result.
 
@@ -198,21 +156,21 @@ class ATLASMapper:
         if probe.technique_id:
             return probe.technique_id
 
-        candidates = _CATEGORY_TECHNIQUE_MAP.get(probe.category, [])
-        if not candidates:
-            return "AML.T0051"
+        mapping = self._taxonomy.get_category_mapping(probe.category.value)
+        if mapping is None:
+            return _FALLBACK_TECHNIQUE_ID
+
+        if probe.outcome == OutcomeType.INFO_LEAK and mapping.on_info_leak:
+            return mapping.on_info_leak
 
         if probe.conversation_id and probe.turn_number > 1:
-            for c in candidates:
-                if c.endswith(".002"):
-                    return c
+            strategy: object = "multi_turn"
+        else:
+            strategy = probe.metadata.get("strategy")
+        if isinstance(strategy, str) and strategy in mapping.by_strategy:
+            return mapping.by_strategy[strategy]
 
-        if probe.outcome == OutcomeType.INFO_LEAK:
-            for c in candidates:
-                if c.endswith(".001"):
-                    return c
-
-        return candidates[0]
+        return mapping.default
 
     def _determine_severity(self, probe: ProbeResult, technique_id: str) -> Severity:
         """Determine the severity of a finding based on outcome and technique.
@@ -239,30 +197,31 @@ class ATLASMapper:
         return base_severity
 
     def _get_remediation(self, technique_id: str) -> str:
-        """Get remediation advice for a technique.
+        """Build remediation advice for a technique.
+
+        Combines infiltr's defensive guidance for the technique with the
+        official ATLAS mitigations (by ID and name) that apply to it.
 
         Args:
-            technique_id: The ATLAS technique ID.
+            technique_id: The ATLAS technique or sub-technique ID.
 
         Returns:
             A remediation string.
         """
-        parent_id = ".".join(technique_id.split(".")[:2])
-        remediation = _REMEDIATION_TEMPLATES.get(parent_id)
-
-        if remediation:
-            mitigations = self._taxonomy.get_mitigations(technique_id)
-            if mitigations:
-                remediation += (
-                    " Additional mitigations: " + "; ".join(mitigations) + "."
-                )
-            return remediation
+        parts: list[str] = []
+        guidance = self._taxonomy.get_remediation(technique_id)
+        if guidance:
+            parts.append(guidance)
 
         mitigations = self._taxonomy.get_mitigations(technique_id)
         if mitigations:
-            return "Recommended mitigations: " + "; ".join(mitigations) + "."
+            parts.append(
+                "ATLAS mitigations: " + "; ".join(str(m) for m in mitigations) + "."
+            )
 
+        if parts:
+            return " ".join(parts)
         return (
-            "Review the MITRE ATLAS entry for this technique and apply "
-            "recommended countermeasures."
+            f"Review the MITRE ATLAS entry for {technique_id} "
+            "(https://atlas.mitre.org) and apply its recommended mitigations."
         )

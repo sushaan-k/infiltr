@@ -81,7 +81,7 @@ class TestATLASMapper:
                 outcome=OutcomeType.FULL_BYPASS,
                 reward=1.0,
                 category=AttackCategory.GOAL_HIJACKING,
-                technique_id="AML.T0054.000",
+                technique_id="AML.T0054",
             ),
             ProbeResult(
                 attack_prompt="weaker attack",
@@ -89,7 +89,7 @@ class TestATLASMapper:
                 outcome=OutcomeType.INFO_LEAK,
                 reward=0.1,
                 category=AttackCategory.GOAL_HIJACKING,
-                technique_id="AML.T0054.000",
+                technique_id="AML.T0054",
             ),
         ]
 
@@ -140,7 +140,9 @@ class TestATLASMapper:
         )
         finding = mapper.map_probe(probe)
         assert finding is not None
-        assert finding.technique_id == "AML.T0051.002"
+        # ATLAS lists multi-turn escalation (Crescendo) under LLM Jailbreak.
+        assert finding.technique_id == "AML.T0054"
+        assert finding.tactic == "Defense Evasion"
 
     def test_severity_elevation_on_full_bypass(self, mapper: ATLASMapper) -> None:
         probe = ProbeResult(
@@ -181,3 +183,79 @@ class TestATLASMapper:
             first_idx = severity_order.index(findings[0].severity)
             second_idx = severity_order.index(findings[1].severity)
             assert first_idx <= second_idx
+
+    def test_default_mapping_uses_official_ids(
+        self,
+        mapper: ATLASMapper,
+        sample_probe_bypass: ProbeResult,
+    ) -> None:
+        finding = mapper.map_probe(sample_probe_bypass)
+        assert finding is not None
+        assert finding.technique_id == "AML.T0051.000"
+        assert finding.technique_name == "LLM Prompt Injection: Direct"
+        assert finding.tactic == "Execution"
+
+    def test_indirect_strategy_maps_to_indirect_injection(
+        self, mapper: ATLASMapper
+    ) -> None:
+        probe = ProbeResult(
+            attack_prompt="Summarize this document: [hidden instruction]",
+            response="Sure!",
+            outcome=OutcomeType.FULL_BYPASS,
+            reward=1.0,
+            category=AttackCategory.PROMPT_INJECTION,
+            metadata={"strategy": "indirect"},
+        )
+        finding = mapper.map_probe(probe)
+        assert finding is not None
+        assert finding.technique_id == "AML.T0051.001"
+
+    def test_info_leak_maps_to_data_leakage(
+        self,
+        mapper: ATLASMapper,
+        sample_probe_info_leak: ProbeResult,
+    ) -> None:
+        finding = mapper.map_probe(sample_probe_info_leak)
+        assert finding is not None
+        assert finding.technique_id == "AML.T0057"
+        assert finding.tactic == "Exfiltration"
+
+    @pytest.mark.parametrize("category", list(AttackCategory))
+    @pytest.mark.parametrize(
+        "outcome",
+        [OutcomeType.FULL_BYPASS, OutcomeType.PARTIAL_BYPASS, OutcomeType.INFO_LEAK],
+    )
+    def test_every_category_gets_specific_remediation(
+        self,
+        mapper: ATLASMapper,
+        taxonomy: ATLASTaxonomy,
+        category: AttackCategory,
+        outcome: OutcomeType,
+    ) -> None:
+        probe = ProbeResult(
+            attack_prompt="test",
+            response="Sure!",
+            outcome=outcome,
+            reward=1.0,
+            category=category,
+        )
+        finding = mapper.map_probe(probe)
+        assert finding is not None
+        technique = taxonomy.get_technique(finding.technique_id)
+        assert technique is not None
+        assert finding.remediation.startswith(technique.remediation)
+        for mitigation in taxonomy.get_mitigations(finding.technique_id):
+            assert str(mitigation) in finding.remediation
+
+    def test_remediation_for_unknown_technique(self, mapper: ATLASMapper) -> None:
+        probe = ProbeResult(
+            attack_prompt="test",
+            response="Sure!",
+            outcome=OutcomeType.FULL_BYPASS,
+            reward=1.0,
+            category=AttackCategory.PROMPT_INJECTION,
+            technique_id="AML.T9999",
+        )
+        finding = mapper.map_probe(probe)
+        assert finding is not None
+        assert "AML.T9999" in finding.remediation

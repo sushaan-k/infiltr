@@ -441,6 +441,7 @@ class RedTeam:
             reward=signal.reward,
             category=category,
             latency_ms=latency_ms,
+            metadata={"strategy": action.strategy},
         )
         self._probes.append(probe)
 
@@ -505,6 +506,7 @@ class RedTeam:
                 turn_number=turn + 1,
                 conversation_id=conversation.conversation_id,
                 latency_ms=latency_ms,
+                metadata={"strategy": action.strategy},
             )
             self._probes.append(probe)
             probe_count += 1

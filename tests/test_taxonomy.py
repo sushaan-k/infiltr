@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from infiltr.atlas.taxonomy import ATLASTaxonomy
@@ -20,14 +22,27 @@ class TestATLASTaxonomy:
         tech = taxonomy.get_technique("AML.T0051")
         assert tech is not None
         assert tech.name == "LLM Prompt Injection"
-        assert tech.tactic == "Initial Access"
+        assert tech.tactic == "Execution"
+        assert tech.tactics == ["Execution"]
+
+    def test_multi_tactic_technique(self, taxonomy: ATLASTaxonomy) -> None:
+        tech = taxonomy.get_technique("AML.T0054")
+        assert tech is not None
+        assert tech.tactics == ["Defense Evasion", "Privilege Escalation"]
+        assert tech.tactic == "Defense Evasion"
 
     def test_get_subtechnique(self, taxonomy: ATLASTaxonomy) -> None:
         tech = taxonomy.get_technique("AML.T0051.001")
         assert tech is not None
         sub = tech.get_subtechnique("AML.T0051.001")
         assert sub is not None
-        assert sub.name == "Indirect Prompt Injection"
+        assert sub.name == "Indirect"
+        assert (
+            taxonomy.get_display_name("AML.T0051.001")
+            == "LLM Prompt Injection: Indirect"
+        )
+        assert taxonomy.get_display_name("AML.T0057") == "LLM Data Leakage"
+        assert taxonomy.get_display_name("AML.T9999") is None
 
     def test_get_nonexistent_technique(self, taxonomy: ATLASTaxonomy) -> None:
         assert taxonomy.get_technique("AML.T9999") is None
@@ -47,8 +62,79 @@ class TestATLASTaxonomy:
 
     def test_get_mitigations(self, taxonomy: ATLASTaxonomy) -> None:
         mitigations = taxonomy.get_mitigations("AML.T0051")
-        assert len(mitigations) > 0
-        assert any("input" in m.lower() for m in mitigations)
+        ids = [m.id for m in mitigations]
+        assert "AML.M0020" in ids
+        assert "AML.M0020 Generative AI Guardrails" in [str(m) for m in mitigations]
+        assert taxonomy.get_mitigations("AML.T9999") == []
+
+    def test_subtechnique_mitigations_include_parent(
+        self, taxonomy: ATLASTaxonomy
+    ) -> None:
+        parent_ids = [m.id for m in taxonomy.get_mitigations("AML.T0034")]
+        sub_ids = [m.id for m in taxonomy.get_mitigations("AML.T0034.001")]
+        assert sub_ids[: len(parent_ids)] == parent_ids
+        assert len(sub_ids) == len(set(sub_ids))
+
+    def test_get_remediation(self, taxonomy: ATLASTaxonomy) -> None:
+        assert taxonomy.get_remediation("AML.T0051.000")
+        assert taxonomy.get_remediation("AML.T9999") == ""
+
+    def test_version_and_tactics(self, taxonomy: ATLASTaxonomy) -> None:
+        assert taxonomy.version != "unknown"
+        names = [t.name for t in taxonomy.tactics]
+        assert names.index("Initial Access") < names.index("Impact")
+
+    def test_category_mapping(self, taxonomy: ATLASTaxonomy) -> None:
+        mapping = taxonomy.get_category_mapping("prompt_injection")
+        assert mapping is not None
+        assert mapping.default == "AML.T0051.000"
+        assert mapping.by_strategy["indirect"] == "AML.T0051.001"
+        assert taxonomy.get_category_mapping("nonexistent") is None
+
+    def test_unresolved_category_id_rejected(self, tmp_path) -> None:
+        data = {
+            "techniques": [
+                {
+                    "id": "AML.T0051",
+                    "name": "LLM Prompt Injection",
+                    "tactics": ["Execution"],
+                    "description": "d",
+                }
+            ],
+            "attack_categories": {
+                "prompt_injection": {
+                    "techniques": ["AML.T0051", "AML.T0054.000"],
+                    "description": "d",
+                }
+            },
+        }
+        path = tmp_path / "t.json"
+        path.write_text(json.dumps(data))
+        with pytest.raises(TaxonomyError, match=r"AML\.T0054\.000"):
+            ATLASTaxonomy(data_path=path).load()
+
+    def test_legacy_format_still_loads(self, tmp_path) -> None:
+        data = {
+            "techniques": [
+                {
+                    "id": "AML.T0051",
+                    "name": "LLM Prompt Injection",
+                    "tactic": "Execution",
+                    "description": "d",
+                    "mitigations": ["Input validation"],
+                }
+            ],
+            "attack_categories": {
+                "prompt_injection": {"techniques": ["AML.T0051"], "description": "d"}
+            },
+        }
+        path = tmp_path / "legacy.json"
+        path.write_text(json.dumps(data))
+        t = ATLASTaxonomy(data_path=path)
+        assert t.get_technique("AML.T0051").tactics == ["Execution"]
+        assert [str(m) for m in t.get_mitigations("AML.T0051")] == ["Input validation"]
+        assert t.get_category_mapping("prompt_injection").default == "AML.T0051"
+        assert [x.name for x in t.tactics] == ["Execution"]
 
     def test_missing_data_file(self) -> None:
         t = ATLASTaxonomy(data_path="/nonexistent/path.json")

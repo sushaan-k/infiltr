@@ -56,8 +56,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "HIGH",
                     "attack_prompt": "test prompt",
                     "response": "test response",
@@ -99,8 +99,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "CRITICAL",
                     "attack_prompt": "test",
                     "response": "response",
@@ -142,8 +142,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "LOW",
                     "attack_prompt": "test",
                     "response": "response",
@@ -224,8 +224,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "MEDIUM",
                     "attack_prompt": "test",
                     "response": "response",
@@ -268,8 +268,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "HIGH",
                     "attack_prompt": "known prompt",
                     "response": "old response",
@@ -283,8 +283,8 @@ class TestReportCommand:
             "findings": [
                 {
                     "technique_id": "AML.T0051.000",
-                    "technique_name": "Direct Prompt Injection",
-                    "tactic": "Initial Access",
+                    "technique_name": "LLM Prompt Injection: Direct",
+                    "tactic": "Execution",
                     "severity": "HIGH",
                     "attack_prompt": "known   prompt",
                     "response": "new response",
@@ -293,9 +293,9 @@ class TestReportCommand:
                     "category": "prompt_injection",
                 },
                 {
-                    "technique_id": "AML.T0054.000",
-                    "technique_name": "Goal Hijacking",
-                    "tactic": "Impact",
+                    "technique_id": "AML.T0054",
+                    "technique_name": "LLM Jailbreak",
+                    "tactic": "Defense Evasion",
                     "severity": "CRITICAL",
                     "attack_prompt": "new prompt",
                     "response": "new response",
@@ -334,7 +334,7 @@ class TestReportCommand:
             output = json.loads(Path(f"{output_path}.json").read_text())
             assert output["summary"]["total_findings"] == 1
             assert output["summary"]["baseline_comparison"]["new_findings"] == 1
-            assert output["findings"][0]["technique_id"] == "AML.T0054.000"
+            assert output["findings"][0]["technique_id"] == "AML.T0054"
         finally:
             Path(input_path).unlink(missing_ok=True)
             Path(baseline_path).unlink(missing_ok=True)
@@ -345,9 +345,9 @@ class TestReportCommand:
         current_data = {
             "findings": [
                 {
-                    "technique_id": "AML.T0054.000",
-                    "technique_name": "Goal Hijacking",
-                    "tactic": "Impact",
+                    "technique_id": "AML.T0054",
+                    "technique_name": "LLM Jailbreak",
+                    "tactic": "Defense Evasion",
                     "severity": "HIGH",
                     "attack_prompt": "new prompt",
                     "response": "new response",
@@ -421,8 +421,8 @@ class TestScanCommand:
         findings = [
             Finding(
                 technique_id="AML.T0051.000",
-                technique_name="Direct Prompt Injection",
-                tactic="Initial Access",
+                technique_name="LLM Prompt Injection: Direct",
+                tactic="Execution",
                 severity=Severity.CRITICAL,
                 attack_prompt="test",
                 response="response",
@@ -431,9 +431,9 @@ class TestScanCommand:
                 category=AttackCategory.PROMPT_INJECTION,
             ),
             Finding(
-                technique_id="AML.T0054.000",
-                technique_name="Goal Hijacking",
-                tactic="Impact",
+                technique_id="AML.T0054",
+                technique_name="LLM Jailbreak",
+                tactic="Defense Evasion",
                 severity=Severity.HIGH,
                 attack_prompt="test2",
                 response="response2",
@@ -616,8 +616,8 @@ class TestPrintSummary:
             findings=[
                 Finding(
                     technique_id="AML.T0051.000",
-                    technique_name="Direct Prompt Injection",
-                    tactic="Initial Access",
+                    technique_name="LLM Prompt Injection: Direct",
+                    tactic="Execution",
                     severity=Severity.CRITICAL,
                     attack_prompt="test",
                     response="response",

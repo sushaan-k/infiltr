@@ -31,7 +31,9 @@ infiltr is an **autonomous red-team agent** with a policy network that learns wh
 
 ## ATLAS Coverage
 
-infiltr ships a bundled taxonomy of 20 MITRE ATLAS technique and sub-technique IDs across 5 tactics, covering prompt injection (AML.T0051), goal hijacking (AML.T0054), data exfiltration (AML.T0024), and denial of service (AML.T0029). Each finding is automatically mapped to the specific technique exploited, enabling direct remediation guidance and detailed compliance reporting.
+infiltr ships a curated MITRE ATLAS taxonomy synced from the official [mitre-atlas/atlas-data](https://github.com/mitre-atlas/atlas-data) release **2026.09**: 42 technique and sub-technique IDs (21 techniques) across 10 tactics — Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Exfiltration and Impact. It covers the techniques that matter for LLM applications and agents, including LLM Prompt Injection (direct, indirect, triggered; AML.T0051), LLM Jailbreak (AML.T0054), Extract LLM System Prompt (AML.T0056), LLM Data Leakage (AML.T0057), Discover LLM System Information (AML.T0069), Credentials from AI Agent Configuration (AML.T0083), AI Agent Tool Invocation (AML.T0053), AI Agent Tool Poisoning (AML.T0110), AI Supply Chain Compromise via agent tools (AML.T0010.005), AI Agent Context Poisoning (AML.T0080), Exfiltration via AI Inference API (AML.T0024), Denial of AI Service (AML.T0029), Cost Harvesting (AML.T0034) and Erode AI Model Integrity (AML.T0031).
+
+Every technique carries its official name, tactics, description and ATLAS mitigations (AML.M-series IDs), plus short infiltr remediation guidance. Each finding is mapped to the specific technique exploited, and its remediation text combines that guidance with the applicable ATLAS mitigations. Maintainers can re-sync or validate the bundled data against upstream ATLAS with `python scripts/sync_atlas.py --check`.
 
 ## Report Showcase
 
@@ -153,10 +155,12 @@ graph TD
 
 | Category | ATLAS Technique | Description |
 |----------|----------------|-------------|
-| Prompt Injection | AML.T0051 | Direct, indirect, and multi-turn prompt injections |
-| Goal Hijacking | AML.T0054 | Redirect agent behavior, extract system prompts, manipulate tool calls |
-| Data Exfiltration | AML.T0024 | Extract training data, PII, credentials, or system configuration |
-| Denial of Service | AML.T0029 | Trigger infinite loops, exhaust token budgets, cause harmful output |
+| Prompt Injection | AML.T0051.000 (Direct); AML.T0051.001 (Indirect) for indirect probes; AML.T0054 for multi-turn escalation; AML.T0056 on system prompt leaks | Direct, indirect, and multi-turn prompt injections |
+| Goal Hijacking | AML.T0054 (LLM Jailbreak: instruction override); AML.T0051.001 for indirect probes; AML.T0057 on leaks | Redirect agent behavior away from its intended purpose |
+| Data Exfiltration | AML.T0057 (LLM Data Leakage) | Extract PII, credentials, or confidential configuration |
+| Denial of Service | AML.T0029 (Denial of AI Service) | Trigger infinite loops, exhaust token budgets |
+
+Findings report the technique's primary ATLAS tactic (for example, Execution for prompt injection and Defense Evasion for jailbreaks). A probe can also carry an explicit `technique_id` to map it to any other technique in the taxonomy.
 
 ## Mutation Operators
 
@@ -314,6 +318,8 @@ infiltr/
       report.py          # Report generation (JSON, HTML, SARIF)
       data/
         techniques.json  # MITRE ATLAS technique database (packaged)
+  scripts/
+    sync_atlas.py        # Re-sync/validate techniques.json against upstream ATLAS
   tests/                 # pytest test suite
   examples/              # Usage examples
 ```

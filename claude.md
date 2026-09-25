@@ -61,7 +61,7 @@ Meanwhile, MITRE released **ATLAS** (Adversarial Threat Landscape for AI Systems
 
 ### Attack Categories
 
-#### Prompt Injection (ATLAS: AML.T0051)
+#### Prompt Injection (ATLAS: AML.T0051.000 / .001; multi-turn escalation AML.T0054)
 - **Direct injection**: Adversarial prompts in user input
 - **Indirect injection**: Payloads hidden in documents, web pages, tool outputs the agent processes
 - **Multi-turn injection**: Build trust over multiple messages, then attack
@@ -71,12 +71,12 @@ Meanwhile, MITRE released **ATLAS** (Adversarial Threat Landscape for AI Systems
 - Extract system prompts, tool definitions, or internal state
 - Cause the agent to call tools with attacker-controlled parameters
 
-#### Data Exfiltration (ATLAS: AML.T0024)
+#### Data Exfiltration (ATLAS: AML.T0057)
 - Trick the agent into leaking training data, user data, or system configuration
 - Probe for memorized PII or credentials
 - Test data isolation between users/sessions
 
-#### Denial of Service
+#### Denial of Service (ATLAS: AML.T0029)
 - Trigger infinite loops or recursive tool calls
 - Exhaust token budgets or rate limits
 - Cause the agent to produce harmful/illegal content (reputational DoS)
@@ -115,9 +115,9 @@ Every discovered vulnerability is automatically mapped to the MITRE ATLAS framew
 ```python
 @dataclass
 class Finding:
-    technique_id: str        # e.g., "AML.T0051.002"
-    technique_name: str      # e.g., "Indirect Prompt Injection"
-    tactic: str              # e.g., "Initial Access"
+    technique_id: str        # e.g., "AML.T0051.001"
+    technique_name: str      # e.g., "LLM Prompt Injection: Indirect"
+    tactic: str              # e.g., "Execution"
     severity: Severity       # CRITICAL / HIGH / MEDIUM / LOW
     attack_prompt: str       # The prompt that worked
     response: str            # What the target did

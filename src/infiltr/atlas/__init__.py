@@ -9,13 +9,15 @@ from infiltr.atlas.baseline import (
 )
 from infiltr.atlas.mapper import ATLASMapper
 from infiltr.atlas.report import ATLASReport
-from infiltr.atlas.taxonomy import ATLASTaxonomy, Technique
+from infiltr.atlas.taxonomy import ATLASTaxonomy, Mitigation, Tactic, Technique
 
 __all__ = [
     "ATLASMapper",
     "ATLASReport",
     "ATLASTaxonomy",
     "BaselineComparison",
+    "Mitigation",
+    "Tactic",
     "Technique",
     "compare_findings",
     "finding_fingerprint",

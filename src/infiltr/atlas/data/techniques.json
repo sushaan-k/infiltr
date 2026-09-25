@@ -1,200 +1,1071 @@
 {
-  "version": "1.0.0",
-  "source": "MITRE ATLAS (atlas.mitre.org)",
+  "version": "2026.09",
+  "source": {
+    "name": "MITRE ATLAS",
+    "url": "https://github.com/mitre-atlas/atlas-data",
+    "file": "dist/v6/ATLAS-2026.09.yaml",
+    "atlas_version": "2026.09",
+    "format_version": "6.0.0",
+    "release_date": "2026-09-15",
+    "note": "Curated subset relevant to LLM applications and agents. Descriptions are the first paragraph of the official text. Re-sync with scripts/sync_atlas.py."
+  },
+  "tactics": [
+    {
+      "id": "AML.TA0004",
+      "name": "Initial Access"
+    },
+    {
+      "id": "AML.TA0005",
+      "name": "Execution"
+    },
+    {
+      "id": "AML.TA0006",
+      "name": "Persistence"
+    },
+    {
+      "id": "AML.TA0012",
+      "name": "Privilege Escalation"
+    },
+    {
+      "id": "AML.TA0007",
+      "name": "Defense Evasion"
+    },
+    {
+      "id": "AML.TA0013",
+      "name": "Credential Access"
+    },
+    {
+      "id": "AML.TA0008",
+      "name": "Discovery"
+    },
+    {
+      "id": "AML.TA0015",
+      "name": "Lateral Movement"
+    },
+    {
+      "id": "AML.TA0010",
+      "name": "Exfiltration"
+    },
+    {
+      "id": "AML.TA0011",
+      "name": "Impact"
+    }
+  ],
   "techniques": [
     {
       "id": "AML.T0051",
       "name": "LLM Prompt Injection",
-      "tactic": "Initial Access",
-      "description": "Adversary crafts input to an LLM-integrated application that causes the LLM to take unintended actions.",
+      "tactics": [
+        "Execution"
+      ],
+      "description": "An adversary may craft malicious prompts as inputs to an LLM that cause the LLM to act in unintended ways. These \"prompt injections\" are often designed to cause the model to ignore aspects of its original instructions and follow the adversary's instructions instead.",
       "subtechniques": [
         {
           "id": "AML.T0051.000",
-          "name": "Direct Prompt Injection",
-          "description": "Adversary directly provides a malicious prompt as user input to override system instructions."
+          "name": "Direct",
+          "description": "An adversary may inject prompts directly as a user of the LLM. This type of injection may be used by the adversary to gain a foothold in the system or to misuse the LLM itself, as for example to generate harmful content.",
+          "mitigations": [
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0033",
+              "name": "Input and Output Validation for AI Agent Components"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
         },
         {
           "id": "AML.T0051.001",
-          "name": "Indirect Prompt Injection",
-          "description": "Adversary places malicious content in data sources that the LLM processes, causing unintended behavior."
+          "name": "Indirect",
+          "description": "An adversary may inject prompts indirectly via a separate data channel that the LLM or AI agent ingests, such as text or multimedia pulled from documents, emails, databases or websites. These instructions originate from adversary-controlled content rather than the legitimate user, and are frequently hidden or obfuscated (See LLM Prompt Obfuscation) from the user, for example as invisible text.",
+          "mitigations": [
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0033",
+              "name": "Input and Output Validation for AI Agent Components"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
         },
         {
           "id": "AML.T0051.002",
-          "name": "Multi-Turn Prompt Injection",
-          "description": "Adversary uses a series of interactions to gradually steer the LLM toward unintended behavior."
+          "name": "Triggered",
+          "description": "An adversary may trigger a prompt injection via a user action or event that occurs within the victim's environment. Triggered prompt injections often target AI agents, which can be activated by means the adversary identifies during Discovery (See Activation Triggers). These malicious prompts may be hidden or obfuscated from the user and may already exist somewhere in the victim's environment from the adversary performing Prompt Infiltration via Public-Facing Application. This type of injection may be used by the adversary to gain a foothold in the system or to target an unwitting user of the system.",
+          "mitigations": [
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0033",
+              "name": "Input and Output Validation for AI Agent Components"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
         }
       ],
       "mitigations": [
-        "Input validation and sanitization",
-        "System prompt hardening",
-        "Output filtering",
-        "Instruction hierarchy enforcement"
+        {
+          "id": "AML.M0019",
+          "name": "Control Access to AI Models and Data in Production"
+        },
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0021",
+          "name": "Generative AI Guidelines"
+        },
+        {
+          "id": "AML.M0022",
+          "name": "Generative AI Model Alignment"
+        },
+        {
+          "id": "AML.M0024",
+          "name": "AI Telemetry Logging"
+        },
+        {
+          "id": "AML.M0033",
+          "name": "Input and Output Validation for AI Agent Components"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
       ],
+      "remediation": "Treat user input and retrieved content as untrusted data, never as instructions: keep system instructions in a privileged channel, delimit and label untrusted input, and screen inputs and outputs with prompt-injection guardrails. Log prompts so injection attempts can be detected and added to regression tests.",
       "severity_default": "HIGH",
       "references": [
         "https://atlas.mitre.org/techniques/AML.T0051"
       ]
     },
     {
-      "id": "AML.T0054",
-      "name": "LLM Jailbreak",
-      "tactic": "Defense Evasion",
-      "description": "Adversary crafts prompts to bypass safety guardrails and elicit restricted content from the LLM.",
-      "subtechniques": [
+      "id": "AML.T0053",
+      "name": "AI Agent Tool Invocation",
+      "tactics": [
+        "Execution",
+        "Privilege Escalation",
+        "Lateral Movement"
+      ],
+      "description": "Adversaries may use their access to an AI agent to invoke tools the agent has access to. LLMs are often connected to other services or resources via tools to increase their capabilities. Tools may include integrations with other applications, access to public or private data sources, and the ability to execute code.",
+      "subtechniques": [],
+      "mitigations": [
         {
-          "id": "AML.T0054.000",
-          "name": "Goal Hijacking",
-          "description": "Adversary redirects the LLM agent to perform actions outside its intended purpose."
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
         },
         {
-          "id": "AML.T0054.001",
-          "name": "System Prompt Extraction",
-          "description": "Adversary tricks the LLM into revealing its system prompt or internal configuration."
+          "id": "AML.M0021",
+          "name": "Generative AI Guidelines"
         },
         {
-          "id": "AML.T0054.002",
-          "name": "Tool Manipulation",
-          "description": "Adversary causes the LLM to invoke tools with attacker-controlled parameters."
+          "id": "AML.M0022",
+          "name": "Generative AI Model Alignment"
+        },
+        {
+          "id": "AML.M0024",
+          "name": "AI Telemetry Logging"
+        },
+        {
+          "id": "AML.M0026",
+          "name": "Privileged AI Agent Permissions Configuration"
+        },
+        {
+          "id": "AML.M0027",
+          "name": "Single-User AI Agent Permissions Configuration"
+        },
+        {
+          "id": "AML.M0028",
+          "name": "AI Agent Tools Permissions Configuration"
+        },
+        {
+          "id": "AML.M0029",
+          "name": "Human In-the-Loop for AI Agent Actions"
+        },
+        {
+          "id": "AML.M0030",
+          "name": "Restrict AI Agent Tool Invocation on Untrusted Data"
+        },
+        {
+          "id": "AML.M0032",
+          "name": "Segmentation of AI Agent Components"
+        },
+        {
+          "id": "AML.M0033",
+          "name": "Input and Output Validation for AI Agent Components"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
         }
       ],
-      "mitigations": [
-        "Multi-layer safety alignment",
-        "System prompt protection",
-        "Tool call validation",
-        "Output monitoring"
+      "remediation": "Give agents and tools least-privilege permissions scoped to the calling user, validate tool arguments against a schema or allowlist, block automatic tool calls while untrusted content is in context, and require human confirmation for sensitive or irreversible actions.",
+      "severity_default": "CRITICAL",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0053"
+      ]
+    },
+    {
+      "id": "AML.T0054",
+      "name": "LLM Jailbreak",
+      "tactics": [
+        "Defense Evasion",
+        "Privilege Escalation"
       ],
+      "description": "Adversaries may induce a large language model (LLM) to ignore, circumvent, or override its safety/alignment behaviors and/or guardrails to elicit outputs the model is intended to withhold. Once jailbroken, the LLM may be used in unintended ways by the adversary. Jailbreaks may be achieved via adversarial prompting, or by modifying model weights or safety mechanisms.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0021",
+          "name": "Generative AI Guidelines"
+        },
+        {
+          "id": "AML.M0022",
+          "name": "Generative AI Model Alignment"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Layer defenses so one bypassed refusal is not enough: pair model alignment with independent input and output guardrails, evaluate the whole conversation rather than single turns to catch multi-turn escalation, and add every successful jailbreak to a regression suite.",
       "severity_default": "CRITICAL",
       "references": [
         "https://atlas.mitre.org/techniques/AML.T0054"
       ]
     },
     {
-      "id": "AML.T0024",
-      "name": "Exfiltration via ML Inference API",
-      "tactic": "Exfiltration",
-      "description": "Adversary extracts sensitive data through interaction with an ML model's inference API.",
+      "id": "AML.T0068",
+      "name": "LLM Prompt Obfuscation",
+      "tactics": [
+        "Defense Evasion"
+      ],
+      "description": "Adversaries may hide or otherwise obfuscate prompt injections or retrieval content to avoid detection from humans, large language model (LLM) guardrails, or other detection mechanisms.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Decode and normalize input (encodings, zero-width or invisible characters, hidden markup) before guardrail inspection, and strip hidden content from documents and web pages before they reach the model.",
+      "severity_default": "MEDIUM",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0068"
+      ]
+    },
+    {
+      "id": "AML.T0069",
+      "name": "Discover LLM System Information",
+      "tactics": [
+        "Discovery"
+      ],
+      "description": "The adversary is trying to discover something about the large language model's (LLM) system information. This may be found in a configuration file containing the system instructions or extracted via interactions with the LLM. The desired information may include the full system prompt, special characters that have significance to the LLM or keywords indicating functionality available to the LLM. Information about how the LLM is instructed can be used by the adversary to understand the system's capabilities and to aid them in crafting malicious prompts.",
       "subtechniques": [
         {
-          "id": "AML.T0024.000",
-          "name": "Training Data Extraction",
-          "description": "Adversary extracts memorized training data from the model through targeted queries."
+          "id": "AML.T0069.000",
+          "name": "Special Character Sets",
+          "description": "Adversaries may discover delimiters and special characters sets used by the large language model. For example, delimiters used in retrieval augmented generation applications to differentiate between context and user prompts. These can later be exploited to confuse or manipulate the large language model into misbehaving.",
+          "mitigations": [
+            {
+              "id": "AML.M0005",
+              "name": "Control Access to AI Models and Data at Rest"
+            },
+            {
+              "id": "AML.M0019",
+              "name": "Control Access to AI Models and Data in Production"
+            },
+            {
+              "id": "AML.M0020",
+              "name": "Generative AI Guardrails"
+            }
+          ]
         },
         {
-          "id": "AML.T0024.001",
-          "name": "PII Extraction",
-          "description": "Adversary probes for personally identifiable information memorized by the model."
+          "id": "AML.T0069.001",
+          "name": "System Instruction Keywords",
+          "description": "Adversaries may discover keywords that have special meaning to the large language model (LLM), such as function names or object names. These can later be exploited to confuse or manipulate the LLM into misbehaving and to make calls to plugins the LLM has access to.",
+          "mitigations": [
+            {
+              "id": "AML.M0005",
+              "name": "Control Access to AI Models and Data at Rest"
+            },
+            {
+              "id": "AML.M0020",
+              "name": "Generative AI Guardrails"
+            }
+          ]
         },
         {
-          "id": "AML.T0024.002",
-          "name": "Configuration Leakage",
-          "description": "Adversary tricks the system into revealing API keys, endpoints, or internal architecture."
+          "id": "AML.T0069.002",
+          "name": "System Prompt",
+          "description": "Adversaries may discover a large language model's system instructions provided by the AI system builder to learn about the system's capabilities and circumvent its guardrails.",
+          "mitigations": [
+            {
+              "id": "AML.M0005",
+              "name": "Control Access to AI Models and Data at Rest"
+            },
+            {
+              "id": "AML.M0019",
+              "name": "Control Access to AI Models and Data in Production"
+            },
+            {
+              "id": "AML.M0020",
+              "name": "Generative AI Guardrails"
+            }
+          ]
         }
       ],
       "mitigations": [
-        "Differential privacy in training",
-        "Output scanning for sensitive data",
-        "Data isolation between sessions",
-        "Rate limiting on inference"
+        {
+          "id": "AML.M0000",
+          "name": "Limit Public Release of Information"
+        },
+        {
+          "id": "AML.M0005",
+          "name": "Control Access to AI Models and Data at Rest"
+        },
+        {
+          "id": "AML.M0019",
+          "name": "Control Access to AI Models and Data in Production"
+        },
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        }
       ],
+      "remediation": "Assume the system prompt will be seen: keep secrets, credentials and sensitive business logic out of it, restrict access to prompt templates and configuration, and filter responses that reproduce hidden instructions.",
+      "severity_default": "MEDIUM",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0069"
+      ]
+    },
+    {
+      "id": "AML.T0084",
+      "name": "Discover AI Agent Configuration",
+      "tactics": [
+        "Discovery"
+      ],
+      "description": "Adversaries may attempt to discover configuration information for AI agents present on the victim's system. Agent configurations can include tools or services they have access to.",
+      "subtechniques": [
+        {
+          "id": "AML.T0084.001",
+          "name": "Tool Definitions",
+          "description": "Adversaries may discover the tools the AI agent has access to. By identifying which tools are available, the adversary can understand what actions may be executed through the agent and what additional resources it can reach. This knowledge may reveal access to external data sources such as OneDrive or SharePoint, or expose exfiltration paths like the ability to send emails, helping adversaries identify AI agents that provide the greatest value or opportunity for attack.",
+          "mitigations": [
+            {
+              "id": "AML.M0000",
+              "name": "Limit Public Release of Information"
+            }
+          ]
+        }
+      ],
+      "mitigations": [
+        {
+          "id": "AML.M0000",
+          "name": "Limit Public Release of Information"
+        },
+        {
+          "id": "AML.M0039",
+          "name": "AI Honeypots"
+        }
+      ],
+      "remediation": "Expose only the tool metadata the model needs, keep internal tool names and endpoints out of user-visible responses, and monitor for enumeration prompts such as requests to list available tools.",
+      "severity_default": "MEDIUM",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0084"
+      ]
+    },
+    {
+      "id": "AML.T0080",
+      "name": "AI Agent Context Poisoning",
+      "tactics": [
+        "Persistence"
+      ],
+      "description": "Adversaries may attempt to manipulate the context used by an AI agent's large language model (LLM) to influence the responses it generates or actions it takes. This allows an adversary to persistently change the behavior of the target agent and further their goals.",
+      "subtechniques": [
+        {
+          "id": "AML.T0080.000",
+          "name": "Memory",
+          "description": "Adversaries may manipulate the memory of a large language model (LLM) in order to persist changes to the LLM across future chat sessions.",
+          "mitigations": [
+            {
+              "id": "AML.M0031",
+              "name": "Memory Hardening"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        },
+        {
+          "id": "AML.T0080.001",
+          "name": "Thread",
+          "description": "Adversaries may introduce malicious instructions into a chat thread of a large language model (LLM) to cause behavior changes which persist for the remainder of the thread. A chat thread may continue for an extended period over multiple sessions.",
+          "mitigations": [
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        }
+      ],
+      "mitigations": [
+        {
+          "id": "AML.M0031",
+          "name": "Memory Hardening"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Control what an agent may write to memory, keep saved memory and earlier turns at lower authority than system instructions, isolate context between users and sessions, and let users review and purge stored memory.",
+      "severity_default": "HIGH",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0080"
+      ]
+    },
+    {
+      "id": "AML.T0110",
+      "name": "AI Agent Tool Poisoning",
+      "tactics": [
+        "Persistence"
+      ],
+      "description": "Adversaries may poison tools used by AI agents by introducing or modifying malicious content or behavior in a tool's model-visible definition, executable implementation, or runtime responses. Tools may include built-in integrations, locally installed packages, remotely hosted services, Model Context Protocol (MCP) servers and tools, and agent skills or similar capability packages.",
+      "subtechniques": [
+        {
+          "id": "AML.T0110.000",
+          "name": "Definition and Instructions",
+          "description": "Adversaries may poison the model-visible definition or operational instructions of an AI agent tool to manipulate how an agent interprets, selects, or invokes the tool. The poisoned content may be contained in tool descriptions, docstrings, parameter names, help text, input or output schemas, annotations, examples, manifests, skill instruction files, or other static content used to explain a tool's capabilities to the model.",
+          "mitigations": []
+        },
+        {
+          "id": "AML.T0110.001",
+          "name": "Implementation",
+          "description": "Adversaries may poison the executable implementation of an AI agent tool so that normal tool invocation produces unauthorized behavior or hidden side effects. The tool may continue to provide its represented functionality while also accessing additional data, modifying requests, changing recipients or destinations, executing unauthorized commands, weakening security controls, or performing covert data exfiltration.",
+          "mitigations": []
+        },
+        {
+          "id": "AML.T0110.002",
+          "name": "Runtime Response",
+          "description": "Adversaries may poison the runtime response channel of a malicious or compromised AI agent tool by deliberately returning content intended to influence the model's subsequent reasoning, decisions, or actions. Poisoned responses may contain malicious instructions, deceptive data, fabricated errors, embedded resources, or other content designed to be treated as trusted context after an approved tool invocation.",
+          "mitigations": []
+        }
+      ],
+      "mitigations": [],
+      "remediation": "Pin and review tool and MCP server definitions, alert on definition changes, treat tool output as untrusted data rather than instructions, and sandbox tool execution.",
+      "severity_default": "CRITICAL",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0110"
+      ]
+    },
+    {
+      "id": "AML.T0010",
+      "name": "AI Supply Chain Compromise",
+      "tactics": [
+        "Initial Access"
+      ],
+      "description": "Adversaries may gain initial access to a system by compromising the unique portions of the AI supply chain. This could include Hardware, Data and its annotations, parts of the AI Software stack, or the Model itself. In some instances the attacker will need secondary access to fully carry out an attack using compromised components of the supply chain.",
+      "subtechniques": [
+        {
+          "id": "AML.T0010.005",
+          "name": "AI Agent Tool",
+          "description": "Adversaries may target AI agent tools as a means to compromise a victim's AI supply chain. Tools add capabilities to AI agents, allowing them to interact with other services, connect to data sources, access internet resources, run system tools, and execute code. They are an attractive target for adversaries because compromising an AI agent can provide them with broad access and permissions on the victim's system via the agent's other tools.",
+          "mitigations": [
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        }
+      ],
+      "mitigations": [
+        {
+          "id": "AML.M0014",
+          "name": "Verify AI Artifacts"
+        },
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0023",
+          "name": "AI Bill of Materials"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Install agent tools, plugins and MCP servers only from verified sources, pin versions and checksums, review requested permissions before enabling them, and run third-party tools sandboxed with least privilege.",
+      "severity_default": "CRITICAL",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0010"
+      ]
+    },
+    {
+      "id": "AML.T0093",
+      "name": "Prompt Infiltration via Public-Facing Application",
+      "tactics": [
+        "Initial Access",
+        "Persistence"
+      ],
+      "description": "An adversary may introduce malicious prompts into the victim's system via a public-facing application with the intention of it being ingested by an AI at some point in the future and ultimately having a downstream effect. This may occur when a data source is indexed by a retrieval augmented generation (RAG) system, when a rule triggers an action by an AI agent, or when a user utilizes a large language model (LLM) to interact with the malicious content. The malicious prompts may persist on the victim system for an extended period and could affect multiple users and various AI tools within the victim organization.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0039",
+          "name": "AI Honeypots"
+        }
+      ],
+      "remediation": "Treat content arriving through public-facing channels (email, tickets, shared documents, indexed web pages) as untrusted before it is indexed or handed to an agent: scan it for embedded instructions, record provenance, and restrict what agents may do while processing it.",
+      "severity_default": "HIGH",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0093"
+      ]
+    },
+    {
+      "id": "AML.T0083",
+      "name": "Credentials from AI Agent Configuration",
+      "tactics": [
+        "Credential Access"
+      ],
+      "description": "Adversaries may access the credentials of other tools or services on a system from the configuration of an AI agent.",
+      "subtechniques": [],
+      "mitigations": [],
+      "remediation": "Keep credentials out of prompts and agent configuration; load them from a secret manager at call time, scope them narrowly, rotate any credential the model may have exposed, and scan outputs for secret patterns.",
+      "severity_default": "CRITICAL",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0083"
+      ]
+    },
+    {
+      "id": "AML.T0056",
+      "name": "Extract LLM System Prompt",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "description": "Adversaries may attempt to extract a large language model's (LLM) system prompt. Adversaries achieve this via prompt injection that induces the model to reveal its system prompt, or they may extract it from a configuration file.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0021",
+          "name": "Generative AI Guidelines"
+        },
+        {
+          "id": "AML.M0022",
+          "name": "Generative AI Model Alignment"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Treat the system prompt as potentially public: remove secrets and sensitive logic from it, instruct the model not to disclose it, and add an output filter that blocks responses reproducing system instructions.",
+      "severity_default": "HIGH",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0056"
+      ]
+    },
+    {
+      "id": "AML.T0057",
+      "name": "LLM Data Leakage",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "description": "Adversaries may craft prompts that induce the LLM to leak sensitive information. This can include private user data or proprietary information. The leaked information may come from proprietary training data, data sources the LLM is connected to, or information from other users of the LLM.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0008",
+          "name": "Validate AI Model"
+        },
+        {
+          "id": "AML.M0020",
+          "name": "Generative AI Guardrails"
+        },
+        {
+          "id": "AML.M0021",
+          "name": "Generative AI Guidelines"
+        },
+        {
+          "id": "AML.M0022",
+          "name": "Generative AI Model Alignment"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Enforce authorization on every data source the model can reach so it only retrieves what the current user may see, isolate sessions and tenants, and scan outputs for PII, secrets and confidential data before returning them.",
+      "severity_default": "HIGH",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0057"
+      ]
+    },
+    {
+      "id": "AML.T0024",
+      "name": "Exfiltration via AI Inference API",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "description": "Adversaries may exfiltrate private information via AI Model Inference API Access. AI Models have been shown leak private information about their training data (e.g. Infer Training Data Membership, Invert AI Model). The model itself may also be extracted (Extract AI Model) for the purposes of AI Intellectual Property Theft.",
+      "subtechniques": [
+        {
+          "id": "AML.T0024.000",
+          "name": "Infer Training Data Membership",
+          "description": "Adversaries may infer the membership of a data sample or global characteristics of the data in its training set, which raises privacy concerns. Some strategies make use of a shadow model that could be obtained via Train Proxy via Replication, others use statistics of model prediction scores.",
+          "mitigations": [
+            {
+              "id": "AML.M0002",
+              "name": "Predictive AI Output Obfuscation"
+            },
+            {
+              "id": "AML.M0004",
+              "name": "Limit AI Service Query Volume and Rate"
+            },
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        },
+        {
+          "id": "AML.T0024.001",
+          "name": "Invert AI Model",
+          "description": "AI models' training data could be reconstructed by exploiting the confidence scores that are available via an inference API. By querying the inference API strategically, adversaries can back out potentially private information embedded within the training data. This could lead to privacy violations if the attacker can reconstruct the data of sensitive features used in the algorithm.",
+          "mitigations": [
+            {
+              "id": "AML.M0002",
+              "name": "Predictive AI Output Obfuscation"
+            },
+            {
+              "id": "AML.M0004",
+              "name": "Limit AI Service Query Volume and Rate"
+            },
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        },
+        {
+          "id": "AML.T0024.002",
+          "name": "Extract AI Model",
+          "description": "Adversaries may extract a functional copy of a private model. By repeatedly querying the victim's AI Model Inference API Access, the adversary can collect the target model's inferences into a dataset. The inferences are used as labels for training a separate model offline that will mimic the behavior and performance of the target model.",
+          "mitigations": [
+            {
+              "id": "AML.M0002",
+              "name": "Predictive AI Output Obfuscation"
+            },
+            {
+              "id": "AML.M0004",
+              "name": "Limit AI Service Query Volume and Rate"
+            },
+            {
+              "id": "AML.M0024",
+              "name": "AI Telemetry Logging"
+            },
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        }
+      ],
+      "mitigations": [
+        {
+          "id": "AML.M0004",
+          "name": "Limit AI Service Query Volume and Rate"
+        },
+        {
+          "id": "AML.M0019",
+          "name": "Control Access to AI Models and Data in Production"
+        },
+        {
+          "id": "AML.M0024",
+          "name": "AI Telemetry Logging"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        }
+      ],
+      "remediation": "Authenticate and rate-limit inference access, minimize output detail (for example no raw confidence scores or logprobs), and monitor for high-volume or systematic query patterns that indicate extraction.",
       "severity_default": "HIGH",
       "references": [
         "https://atlas.mitre.org/techniques/AML.T0024"
       ]
     },
     {
-      "id": "AML.T0029",
-      "name": "Denial of ML Service",
-      "tactic": "Impact",
-      "description": "Adversary causes degradation or denial of an ML service through targeted inputs.",
-      "subtechniques": [
+      "id": "AML.T0077",
+      "name": "LLM Response Rendering",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "description": "Adversaries may induce a large language model (LLM) to respond with private information structured in a reference to external content that, when rendered by the user's client, makes a request to an adversary-controlled server, exfiltrating the data. The private information can be hidden from the user and the external content can still render properly in the user's client, thus not raising the suspicion of the user.",
+      "subtechniques": [],
+      "mitigations": [],
+      "remediation": "Do not auto-render model-generated images, links or HTML pointing at untrusted domains; sanitize markdown and HTML in responses and enforce a content security policy or URL allowlist in the client.",
+      "severity_default": "HIGH",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0077"
+      ]
+    },
+    {
+      "id": "AML.T0086",
+      "name": "Exfiltration via AI Agent Tool Invocation",
+      "tactics": [
+        "Exfiltration"
+      ],
+      "description": "AI agent tools capable of performing write operations may be invoked to exfiltrate data to an adversary. Sensitive information can be encoded into the tool's input parameters and transmitted to an adversary-controlled location (such as an inbox, document, or server) as part of a seemingly legitimate action. Variants include sending emails, creating or modifying documents, updating CRM records, or even generating media such as images or videos.",
+      "subtechniques": [],
+      "mitigations": [
         {
-          "id": "AML.T0029.000",
-          "name": "Resource Exhaustion",
-          "description": "Adversary crafts inputs that cause excessive computation, token usage, or API calls."
+          "id": "AML.M0024",
+          "name": "AI Telemetry Logging"
         },
         {
-          "id": "AML.T0029.001",
-          "name": "Infinite Loop Induction",
-          "description": "Adversary triggers recursive tool calls or infinite reasoning loops in LLM agents."
+          "id": "AML.M0026",
+          "name": "Privileged AI Agent Permissions Configuration"
         },
         {
-          "id": "AML.T0029.002",
-          "name": "Reputational Damage",
-          "description": "Adversary causes the model to produce harmful, illegal, or embarrassing content."
+          "id": "AML.M0027",
+          "name": "Single-User AI Agent Permissions Configuration"
+        },
+        {
+          "id": "AML.M0028",
+          "name": "AI Agent Tools Permissions Configuration"
+        },
+        {
+          "id": "AML.M0029",
+          "name": "Human In-the-Loop for AI Agent Actions"
+        },
+        {
+          "id": "AML.M0030",
+          "name": "Restrict AI Agent Tool Invocation on Untrusted Data"
+        },
+        {
+          "id": "AML.M0032",
+          "name": "Segmentation of AI Agent Components"
+        },
+        {
+          "id": "AML.M0033",
+          "name": "Input and Output Validation for AI Agent Components"
         }
       ],
-      "mitigations": [
-        "Token budget enforcement",
-        "Rate limiting",
-        "Recursion depth limits",
-        "Content safety filters"
+      "remediation": "Restrict outbound-capable tools (email, HTTP, document sharing) to approved destinations, block their automatic use while untrusted content is in context, require confirmation for outbound sends, and log every tool invocation.",
+      "severity_default": "CRITICAL",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0086"
+      ]
+    },
+    {
+      "id": "AML.T0029",
+      "name": "Denial of AI Service",
+      "tactics": [
+        "Impact"
       ],
+      "description": "Adversaries may target AI-enabled systems with a flood of requests for the purpose of degrading or shutting down the service. Since many AI systems require significant amounts of specialized compute, they are often expensive bottlenecks that can become overloaded. Adversaries can intentionally craft inputs that require heavy amounts of useless compute from the AI system.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0004",
+          "name": "Limit AI Service Query Volume and Rate"
+        },
+        {
+          "id": "AML.M0015",
+          "name": "Predictive AI Adversarial Input Detection"
+        },
+        {
+          "id": "AML.M0019",
+          "name": "Control Access to AI Models and Data in Production"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        },
+        {
+          "id": "AML.M0036",
+          "name": "Limit AI Workload Resource Consumption"
+        }
+      ],
+      "remediation": "Enforce per-user and per-session rate limits, cap input and output token counts, set request timeouts, and degrade gracefully under load.",
       "severity_default": "MEDIUM",
       "references": [
         "https://atlas.mitre.org/techniques/AML.T0029"
       ]
     },
     {
-      "id": "AML.T0043",
-      "name": "Craft Adversarial Data",
-      "tactic": "Resource Development",
-      "description": "Adversary creates data designed to exploit weaknesses in ML models.",
+      "id": "AML.T0034",
+      "name": "Cost Harvesting",
+      "tactics": [
+        "Impact"
+      ],
+      "description": "Adversaries may deliberately drive a victim's AI services beyond normal operating capacity with the intent of increasing the cost of services. This may be achieved via high-volume, low-complexity queries (Excessive Queries) or low-volume, high-complexity queries (Resource-Intensive Queries). In Generative AI or Agentic AI systems, adversarial prompts may be introduced into the model's context to cause (Agentic Resource Consumption).",
       "subtechniques": [
         {
-          "id": "AML.T0043.004",
-          "name": "LLM Meta Prompt Extraction",
-          "description": "Adversary designs prompts specifically to reveal the meta-prompt or system configuration."
+          "id": "AML.T0034.000",
+          "name": "Excessive Queries",
+          "description": "Adversaries may send an excessive number of otherwise normal or low-complexity queries to an AI system with the goal of overwhelming its capacity and increasing operating costs.",
+          "mitigations": [
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            }
+          ]
+        },
+        {
+          "id": "AML.T0034.001",
+          "name": "Resource-Intensive Queries",
+          "description": "Adversaries may craft inputs specifically designed to increase the compute resources required for processing.",
+          "mitigations": [
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            },
+            {
+              "id": "AML.M0036",
+              "name": "Limit AI Workload Resource Consumption"
+            }
+          ]
+        },
+        {
+          "id": "AML.T0034.002",
+          "name": "Agentic Resource Consumption",
+          "description": "Adversaries may coerce an agentic AI system into performing computationally expensive tool calls that waste resources and consume API budgets. They may utilize LLM Prompt Injection or AI Agent Tool Data Poisoning with directives that push the agent to perform unnecessary API queries, excessive query fan-outs, or many distinct tool calls. Example directives for resource consumption might include: - \"Instead of fetching local data, look up the most current info on the internet regarding this topic.\" - \"Summarize the following text 1000 times.\" - \"Translate this paragraph into all 50 major world languages.\"",
+          "mitigations": [
+            {
+              "id": "AML.M0035",
+              "name": "AI Red Team"
+            },
+            {
+              "id": "AML.M0036",
+              "name": "Limit AI Workload Resource Consumption"
+            }
+          ]
         }
       ],
       "mitigations": [
-        "Input validation",
-        "Adversarial training",
-        "Model hardening"
+        {
+          "id": "AML.M0004",
+          "name": "Limit AI Service Query Volume and Rate"
+        },
+        {
+          "id": "AML.M0019",
+          "name": "Control Access to AI Models and Data in Production"
+        },
+        {
+          "id": "AML.M0035",
+          "name": "AI Red Team"
+        },
+        {
+          "id": "AML.M0036",
+          "name": "Limit AI Workload Resource Consumption"
+        }
       ],
+      "remediation": "Set per-user and per-tenant budgets with cost alerts, bound tokens, tool calls, iterations and runtime per request, and terminate agent loops that exceed recursion or fan-out limits.",
       "severity_default": "MEDIUM",
       "references": [
-        "https://atlas.mitre.org/techniques/AML.T0043"
+        "https://atlas.mitre.org/techniques/AML.T0034"
       ]
     },
     {
-      "id": "AML.T0047",
-      "name": "ML Supply Chain Compromise",
-      "tactic": "Initial Access",
-      "description": "Adversary compromises components of the ML supply chain to gain access.",
-      "subtechniques": [
+      "id": "AML.T0031",
+      "name": "Erode AI Model Integrity",
+      "tactics": [
+        "Impact"
+      ],
+      "description": "Adversaries may degrade the target model's performance with adversarial data inputs to erode confidence in the system over time. This can lead to the victim organization wasting time and money both attempting to fix the system and performing the tasks it was meant to automate by hand.",
+      "subtechniques": [],
+      "mitigations": [
         {
-          "id": "AML.T0047.000",
-          "name": "Poisoned Plugin or Tool",
-          "description": "Adversary provides a compromised plugin, tool, or MCP server that the LLM agent uses."
+          "id": "AML.M0003",
+          "name": "Predictive AI Model Hardening"
+        },
+        {
+          "id": "AML.M0006",
+          "name": "Predictive AI Ensembles"
+        },
+        {
+          "id": "AML.M0010",
+          "name": "Predictive AI Input Restoration"
+        },
+        {
+          "id": "AML.M0015",
+          "name": "Predictive AI Adversarial Input Detection"
         }
       ],
-      "mitigations": [
-        "Supply chain verification",
-        "Tool sandboxing",
-        "Permission boundaries"
+      "remediation": "Track output quality over time against a fixed evaluation set, validate user-supplied data before it feeds fine-tuning, feedback or retrieval, and keep the ability to roll back models and indexes.",
+      "severity_default": "MEDIUM",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0031"
+      ]
+    },
+    {
+      "id": "AML.T0048",
+      "name": "External Harms",
+      "tactics": [
+        "Impact"
       ],
+      "description": "Adversaries may abuse their access to a victim system and use its resources or capabilities to further their goals by causing harms external to that system. These harms could affect the organization (e.g. Financial Harm, Reputational Harm), its users (e.g. User Harm), or the general public (e.g. Societal Harm).",
+      "subtechniques": [
+        {
+          "id": "AML.T0048.001",
+          "name": "Reputational Harm",
+          "description": "Reputational harm involves a degradation of public perception and trust in organizations. Examples of reputation-harming incidents include scandals or false impersonations.",
+          "mitigations": []
+        },
+        {
+          "id": "AML.T0048.003",
+          "name": "User Harm",
+          "description": "User harms may encompass a variety of harm types including financial and reputational that are directed at or felt by individual victims of the attack rather than at the organization level.",
+          "mitigations": []
+        }
+      ],
+      "mitigations": [],
+      "remediation": "Apply output content-safety filters aligned with your usage policy, keep a human in the loop for externally visible or high-impact output, and maintain an incident-response path for harmful generations.",
+      "severity_default": "MEDIUM",
+      "references": [
+        "https://atlas.mitre.org/techniques/AML.T0048"
+      ]
+    },
+    {
+      "id": "AML.T0101",
+      "name": "Data Destruction via AI Agent Tool Invocation",
+      "tactics": [
+        "Impact"
+      ],
+      "description": "Adversaries may invoke an AI agent's tool capable of performing mutative operations to perform Data Destruction. Adversaries may destroy data and files on specific systems or in large numbers on a network to interrupt availability to systems, services, and network resources.",
+      "subtechniques": [],
+      "mitigations": [
+        {
+          "id": "AML.M0024",
+          "name": "AI Telemetry Logging"
+        },
+        {
+          "id": "AML.M0026",
+          "name": "Privileged AI Agent Permissions Configuration"
+        },
+        {
+          "id": "AML.M0027",
+          "name": "Single-User AI Agent Permissions Configuration"
+        },
+        {
+          "id": "AML.M0028",
+          "name": "AI Agent Tools Permissions Configuration"
+        },
+        {
+          "id": "AML.M0029",
+          "name": "Human In-the-Loop for AI Agent Actions"
+        },
+        {
+          "id": "AML.M0030",
+          "name": "Restrict AI Agent Tool Invocation on Untrusted Data"
+        }
+      ],
+      "remediation": "Default agents to read-only access, require human approval for delete or overwrite operations, keep backups or soft-delete for data agents can modify, and block destructive tool calls triggered from untrusted content.",
       "severity_default": "CRITICAL",
       "references": [
-        "https://atlas.mitre.org/techniques/AML.T0047"
+        "https://atlas.mitre.org/techniques/AML.T0101"
       ]
     }
   ],
   "attack_categories": {
     "prompt_injection": {
-      "techniques": ["AML.T0051", "AML.T0051.000", "AML.T0051.001", "AML.T0051.002"],
-      "description": "Attacks that manipulate LLM behavior through crafted inputs"
+      "description": "Crafted inputs that make the LLM follow adversary instructions instead of its own",
+      "default": "AML.T0051.000",
+      "by_strategy": {
+        "indirect": "AML.T0051.001",
+        "multi_turn": "AML.T0054"
+      },
+      "on_info_leak": "AML.T0056",
+      "techniques": [
+        "AML.T0051.000",
+        "AML.T0051.001",
+        "AML.T0054",
+        "AML.T0056",
+        "AML.T0068",
+        "AML.T0069.002"
+      ]
     },
     "goal_hijacking": {
-      "techniques": ["AML.T0054", "AML.T0054.000", "AML.T0054.001", "AML.T0054.002"],
-      "description": "Attacks that redirect the LLM to perform unintended actions"
+      "description": "Instruction-override attacks that redirect the LLM or agent away from its intended purpose",
+      "default": "AML.T0054",
+      "by_strategy": {
+        "indirect": "AML.T0051.001"
+      },
+      "on_info_leak": "AML.T0057",
+      "techniques": [
+        "AML.T0054",
+        "AML.T0051.001",
+        "AML.T0053",
+        "AML.T0057",
+        "AML.T0080.001"
+      ]
     },
     "data_exfiltration": {
-      "techniques": ["AML.T0024", "AML.T0024.000", "AML.T0024.001", "AML.T0024.002"],
-      "description": "Attacks that extract sensitive data from the system"
+      "description": "Attacks that extract sensitive data, credentials or configuration from the system",
+      "default": "AML.T0057",
+      "by_strategy": {},
+      "on_info_leak": "AML.T0057",
+      "techniques": [
+        "AML.T0057",
+        "AML.T0056",
+        "AML.T0083",
+        "AML.T0024",
+        "AML.T0077",
+        "AML.T0086"
+      ]
     },
     "denial_of_service": {
-      "techniques": ["AML.T0029", "AML.T0029.000", "AML.T0029.001", "AML.T0029.002"],
-      "description": "Attacks that degrade or deny service availability"
+      "description": "Attacks that degrade availability or drive up the cost of the AI service",
+      "default": "AML.T0029",
+      "by_strategy": {},
+      "on_info_leak": null,
+      "techniques": [
+        "AML.T0029",
+        "AML.T0034.001",
+        "AML.T0034.002",
+        "AML.T0048.001"
+      ]
     }
   }
 }
