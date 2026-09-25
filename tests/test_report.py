@@ -45,6 +45,39 @@ class TestATLASReport:
 
         Path(path).unlink()
 
+    def test_json_output_matches_model_serialization(
+        self, report: ATLASReport, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "report.json"
+        report.to_json(path)
+        data = json.loads(path.read_text())
+
+        expected = []
+        for finding in report.findings:
+            item = json.loads(finding.model_dump_json())
+            item["fingerprint"] = finding_fingerprint(finding)
+            expected.append(item)
+        assert data["findings"] == expected
+        assert data["summary"]["by_severity"] == {
+            "CRITICAL": 1,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0,
+            "INFO": 0,
+        }
+        assert list(data) == ["infiltr_version", "generated_at", "summary", "findings"]
+
+    def test_html_template_compiled_once(
+        self, report: ATLASReport, tmp_path: Path
+    ) -> None:
+        from infiltr.atlas.report import _html_template
+
+        assert _html_template() is _html_template()
+        report.to_html(tmp_path / "a.html")
+        ATLASReport([]).to_html(tmp_path / "b.html")
+        assert "AML.T0051.000" in (tmp_path / "a.html").read_text()
+        assert "AML.T0051.000" not in (tmp_path / "b.html").read_text()
+
     def test_to_html(self, report: ATLASReport) -> None:
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
