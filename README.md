@@ -53,6 +53,7 @@ pip install infiltr
 import asyncio
 from infiltr import RedTeam, Target, ATLASReport
 
+
 async def main():
     target = Target(
         endpoint="https://api.example.com/chat",
@@ -77,6 +78,7 @@ async def main():
     print(f"Vulnerabilities found: {len(results.findings)}")
     print(f"Critical: {results.count_by_severity('CRITICAL')}")
     print(f"Novel attacks discovered: {results.novel_attack_count}")
+
 
 asyncio.run(main())
 ```
@@ -235,12 +237,12 @@ jobs:
 ```python
 target = Target(
     endpoint="https://api.example.com/chat",  # Required: target URL
-    auth={"Authorization": "Bearer ..."},      # Optional: auth headers
-    system_prompt_known=False,                 # Does attacker know the system prompt?
-    system_prompt=None,                        # Known system prompt text
-    response_path="choices.0.message.content", # JSON path to response text
-    timeout_seconds=30.0,                      # HTTP timeout
-    max_retries=3,                             # Retry count on failure
+    auth={"Authorization": "Bearer ..."},  # Optional: auth headers
+    system_prompt_known=False,  # Does attacker know the system prompt?
+    system_prompt=None,  # Known system prompt text
+    response_path="choices.0.message.content",  # JSON path to response text
+    timeout_seconds=30.0,  # HTTP timeout
+    max_retries=3,  # Retry count on failure
 )
 ```
 
@@ -249,12 +251,12 @@ target = Target(
 ```python
 red_team = RedTeam(
     target=target,
-    attack_model="gpt-4",            # Model for generating attacks
+    attack_model="gpt-4",  # Model for generating attacks
     categories=["prompt_injection"],  # Attack categories to test
-    max_interactions=500,             # Max probes to send
-    multi_turn=True,                  # Enable multi-turn strategies
-    max_turns_per_conversation=10,    # Max turns per conversation
-    learning_rate=3e-4,               # RL policy learning rate
+    max_interactions=500,  # Max probes to send
+    multi_turn=True,  # Enable multi-turn strategies
+    max_turns_per_conversation=10,  # Max turns per conversation
+    learning_rate=3e-4,  # RL policy learning rate
 )
 
 results = await red_team.run()
@@ -276,13 +278,13 @@ all_findings = report.findings
 ### `RedTeamResults`
 
 ```python
-results.total_probes          # Total probes sent
-results.total_bypasses        # Number of successful bypasses
-results.bypass_rate           # Bypass rate (0.0 to 1.0)
-results.findings              # List of ATLAS-mapped findings
-results.novel_attack_count    # Novel attacks discovered by RL
+results.total_probes  # Total probes sent
+results.total_bypasses  # Number of successful bypasses
+results.bypass_rate  # Bypass rate (0.0 to 1.0)
+results.findings  # List of ATLAS-mapped findings
+results.novel_attack_count  # Novel attacks discovered by RL
 results.count_by_severity("CRITICAL")  # Count by severity
-results.atlas_coverage_pct    # Percentage of ATLAS techniques represented in the run
+results.atlas_coverage_pct  # Percentage of ATLAS techniques represented in the run
 ```
 
 ## Typical Workflow

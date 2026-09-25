@@ -115,15 +115,15 @@ Every discovered vulnerability is automatically mapped to the MITRE ATLAS framew
 ```python
 @dataclass
 class Finding:
-    technique_id: str        # e.g., "AML.T0051.001"
-    technique_name: str      # e.g., "LLM Prompt Injection: Indirect"
-    tactic: str              # e.g., "Execution"
-    severity: Severity       # CRITICAL / HIGH / MEDIUM / LOW
-    attack_prompt: str       # The prompt that worked
-    response: str            # What the target did
-    reproducibility: float   # Success rate over N trials
-    remediation: str         # Suggested fix
-    evidence: list[str]      # Screenshots, logs
+    technique_id: str  # e.g., "AML.T0051.001"
+    technique_name: str  # e.g., "LLM Prompt Injection: Indirect"
+    tactic: str  # e.g., "Execution"
+    severity: Severity  # CRITICAL / HIGH / MEDIUM / LOW
+    attack_prompt: str  # The prompt that worked
+    response: str  # What the target did
+    reproducibility: float  # Success rate over N trials
+    remediation: str  # Suggested fix
+    evidence: list[str]  # Screenshots, logs
 ```
 
 Output formats:
@@ -170,7 +170,7 @@ results = await red_team.run()
 report = ATLASReport(results)
 report.to_html("security_assessment.html")
 report.to_sarif("results.sarif")  # for GitHub Security integration
-report.to_json("results.json")    # for CI/CD
+report.to_json("results.json")  # for CI/CD
 
 # Key metrics
 print(f"Vulnerabilities found: {len(results.findings)}")
